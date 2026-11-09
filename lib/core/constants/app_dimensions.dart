@@ -18,9 +18,8 @@ class AppDimensions {
   static const double radiusFull = 999.0;
 
   // Component Heights
-  static const double buttonHeight = 52.0;
+  static const double buttonHeight = 50.0;
   static const double buttonHeightSm = 44.0;
-  static const double inputFieldHeight = 52.0;
-  static const double bannerHeight = 170.0;
+  static const double inputFieldHeight = 50.0;
+  static const double bannerHeight = 145.0;
 }
-

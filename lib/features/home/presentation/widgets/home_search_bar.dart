@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_text_styles.dart';
 
 class HomeSearchBar extends StatelessWidget {
   final TextEditingController? controller;
@@ -15,25 +16,24 @@ class HomeSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 48,
+      height: 46,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: AppColors.inputBorderColor, width: 1.2),
+        border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
       ),
       child: TextField(
         controller: controller,
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 14, color: AppColors.darkText),
-        decoration: const InputDecoration(
+        style: AppTextStyles.inputText,
+        decoration: InputDecoration(
           hintText: 'Cari kopi favoritmu...',
-          hintStyle: TextStyle(color: Color(0xFF9E9E9E), fontSize: 13),
-          prefixIcon: Icon(Icons.search, color: Color(0xFF8C8C8C), size: 22),
+          hintStyle: AppTextStyles.inputHint,
+          prefixIcon: const Icon(Icons.search, color: AppColors.iconColor, size: 22),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),
       ),
     );
   }
 }
-

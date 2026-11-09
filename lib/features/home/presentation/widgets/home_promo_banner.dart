@@ -19,12 +19,12 @@ class HomePromoBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: 145,
+      height: 140,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -47,8 +47,8 @@ class HomePromoBanner extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.35),
-                    Colors.black.withValues(alpha: 0.75),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.black.withValues(alpha: 0.65),
                   ],
                 ),
               ),
@@ -73,7 +73,7 @@ class HomePromoBanner extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.darkText,
+                        color: AppColors.darkBrown,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -95,9 +95,10 @@ class HomePromoBanner extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white70,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          height: 1.2,
                         ),
                       ),
                     ],
@@ -111,4 +112,3 @@ class HomePromoBanner extends StatelessWidget {
     );
   }
 }
-

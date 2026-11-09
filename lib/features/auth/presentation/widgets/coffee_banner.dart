@@ -6,23 +6,25 @@ import '../../../../core/theme/app_colors.dart';
 class CoffeeBanner extends StatelessWidget {
   final String title;
   final String subtitle;
+  final double? height;
 
   const CoffeeBanner({
     super.key,
     this.title = 'Jeda sejenak, kopi dulu.',
     this.subtitle = 'Kopi favoritmu, selalu dekat denganmu.',
+    this.height,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: AppDimensions.bannerHeight,
+      height: height ?? AppDimensions.bannerHeight,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -42,14 +44,14 @@ class CoffeeBanner extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.1),
-                    Colors.black.withValues(alpha: 0.6),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.black.withValues(alpha: 0.65),
                   ],
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(AppDimensions.xl),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -60,12 +62,17 @@ class CoffeeBanner extends StatelessWidget {
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      height: 1.2,
+                    ),
                   ),
                 ],
               ),
@@ -76,4 +83,3 @@ class CoffeeBanner extends StatelessWidget {
     );
   }
 }
-

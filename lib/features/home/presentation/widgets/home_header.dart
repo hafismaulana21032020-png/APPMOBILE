@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 
 class HomeHeader extends StatelessWidget {
@@ -12,12 +11,7 @@ class HomeHeader extends StatelessWidget {
       children: const [
         Text(
           'BreakFree',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryBrown,
-            letterSpacing: -0.5,
-          ),
+          style: AppTextStyles.brandTitle,
         ),
         SizedBox(height: 2),
         Text(
@@ -28,4 +22,3 @@ class HomeHeader extends StatelessWidget {
     );
   }
 }
-

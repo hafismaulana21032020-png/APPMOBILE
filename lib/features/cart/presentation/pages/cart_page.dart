@@ -1,0 +1,523 @@
+import 'package:flutter/material.dart';
+
+import '../../../../core/constants/app_assets.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../domain/models/cart_item_model.dart';
+import '../widgets/cart_item_card.dart';
+
+class CartPage extends StatefulWidget {
+  const CartPage({super.key});
+
+  @override
+  State<CartPage> createState() => _CartPageState();
+}
+
+class _CartPageState extends State<CartPage> {
+  final TextEditingController _promoController =
+      TextEditingController(text: 'KODE PROMO: KOPIKAMPUS');
+
+  // List Item Keranjang
+  final List<CartItemModel> _cartItems = [
+    CartItemModel(
+      id: '1',
+      name: 'Kopi Susu Gula Aren',
+      options: 'Regular, Normal Sugar, Oatmilk',
+      price: 25000,
+      quantity: 1,
+      image: AppAssets.breakfreeArenLatte,
+    ),
+    CartItemModel(
+      id: '2',
+      name: 'Croissant Almond',
+      options: 'Original Butter pastry',
+      price: 26000,
+      quantity: 1,
+      image: 'assets/images/croissant_almond.jpg',
+    ),
+  ];
+
+  // Promo terpasang (20% diskon)
+  bool _isPromoApplied = true;
+  final double _discountPercent = 0.20;
+
+  // Metode Pembayaran Terpilih
+  String _selectedPaymentMethod = 'QRIS';
+  final List<String> _paymentMethods = ['QRIS', 'GoPay', 'OVO', 'Dana'];
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
+  }
+
+  int get _subtotal {
+    return _cartItems.fold(0, (sum, item) => sum + item.totalPrice);
+  }
+
+  int get _discountAmount {
+    if (!_isPromoApplied) return 0;
+    return (_subtotal * _discountPercent).round();
+  }
+
+  int get _totalPayment {
+    final total = _subtotal - _discountAmount;
+    return total > 0 ? total : 0;
+  }
+
+  String _formatPrice(int price) {
+    final str = price.toString();
+    if (str.length <= 3) return 'Rp $str';
+    final thousands = str.substring(0, str.length - 3);
+    final rest = str.substring(str.length - 3);
+    return 'Rp $thousands.$rest';
+  }
+
+  void _onIncrement(int index) {
+    setState(() {
+      _cartItems[index].quantity++;
+    });
+  }
+
+  void _onDecrement(int index) {
+    setState(() {
+      if (_cartItems[index].quantity > 1) {
+        _cartItems[index].quantity--;
+      } else {
+        // Tampilkan konfirmasi hapus item
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Hapus Item?'),
+            content: Text(
+                'Apakah Anda ingin menghapus ${_cartItems[index].name} dari keranjang?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _cartItems.removeAt(index);
+                  });
+                },
+                child: const Text('Hapus',
+                    style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+      }
+    });
+  }
+
+  void _applyPromo() {
+    final code = _promoController.text.trim().toUpperCase();
+    if (code.contains('KOPIKAMPUS')) {
+      setState(() {
+        _isPromoApplied = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Promo KOPIKAMPUS berhasil diterapkan! (Diskon 20%)'),
+          backgroundColor: Color(0xFF2E7D32),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else if (code.isEmpty) {
+      setState(() {
+        _isPromoApplied = false;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kode promo tidak valid'),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _onCheckout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Pembayaran Berhasil!',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkText,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Metode: $_selectedPaymentMethod'),
+            const SizedBox(height: 6),
+            Text('Total: ${_formatPrice(_totalPayment)}'),
+            const SizedBox(height: 12),
+            const Text(
+              'Pesanan Anda sedang dipersiapkan oleh barista. Silakan cek halaman Akun untuk melacak pesanan.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context); // kembali ke halaman sebelumnya
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.darkBrown,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Selesai', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ================= HEADER =================
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.inputBorderColor,
+                        width: 1.0,
+                      ),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        size: 20,
+                        color: AppColors.darkText,
+                      ),
+                      padding: EdgeInsets.zero,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Text(
+                    'Keranjang Belanja',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkText,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ================= SCROLLABLE CONTENT =================
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 6),
+
+                    // Daftar Item Keranjang
+                    if (_cartItems.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Text(
+                            'Keranjang Anda masih kosong',
+                            style: TextStyle(color: AppColors.secondaryText),
+                          ),
+                        ),
+                      )
+                    else
+                      ...List.generate(_cartItems.length, (index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: CartItemCard(
+                            item: _cartItems[index],
+                            onIncrement: () => _onIncrement(index),
+                            onDecrement: () => _onDecrement(index),
+                          ),
+                        );
+                      }),
+
+                    const SizedBox(height: 6),
+
+                    // Input Kode Promo & Tombol Terapkan
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 48,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.inputBorderColor,
+                                width: 1.0,
+                              ),
+                            ),
+                            alignment: Alignment.centerLeft,
+                            child: TextField(
+                              controller: _promoController,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.darkText,
+                                letterSpacing: 0.3,
+                              ),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                hintText: 'KODE PROMO',
+                                hintStyle: TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.hintColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _applyPromo,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryBrown,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                            ),
+                            child: const Text(
+                              'Terapkan',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Section Metode Pembayaran
+                    const Text(
+                      'Metode Pembayaran',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkText,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Row Pilihan Pembayaran (QRIS, GoPay, OVO, Dana)
+                    Row(
+                      children: _paymentMethods.map((method) {
+                        final isSelected = _selectedPaymentMethod == method;
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedPaymentMethod = method;
+                                });
+                              },
+                              child: Container(
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.buttonYellow
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? const Color(0xFFE2C481)
+                                        : AppColors.inputBorderColor,
+                                    width: 1.0,
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  method,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? AppColors.darkBrown
+                                        : AppColors.darkBrown,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+
+            // ================= BOTTOM SUMMARY & CHECKOUT BAR =================
+            Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  top: BorderSide(
+                    color: Color(0xFFF0EBE5),
+                    width: 1.0,
+                  ),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Subtotal
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Subtotal',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          color: AppColors.secondaryText,
+                        ),
+                      ),
+                      Text(
+                        _formatPrice(_subtotal),
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.darkText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Diskon Promo
+                  if (_isPromoApplied) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Diskon Promo',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF0F9D58),
+                          ),
+                        ),
+                        Text(
+                          '-${_formatPrice(_discountAmount)}',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F9D58),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // Total Pembayaran
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total Pembayaran',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkText,
+                        ),
+                      ),
+                      Text(
+                        _formatPrice(_totalPayment),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Tombol Bayar Sekarang
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _cartItems.isEmpty ? null : _onCheckout,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBrown,
+                        disabledBackgroundColor: Colors.grey.shade400,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'Bayar Sekarang (${_formatPrice(_totalPayment)})',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

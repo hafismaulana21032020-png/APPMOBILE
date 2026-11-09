@@ -5,6 +5,8 @@ class ProductModel {
   final String category;
   final String image;
   final String description;
+  final String? subcategory;
+  final String? tag;
 
   const ProductModel({
     required this.id,
@@ -13,6 +15,8 @@ class ProductModel {
     required this.category,
     required this.image,
     this.description = '',
+    this.subcategory,
+    this.tag,
   });
 
   String get formattedPrice {

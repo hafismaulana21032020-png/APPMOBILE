@@ -28,7 +28,7 @@ class FloatingCartBar extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.darkBrown,
+        color: AppColors.primaryBrown,
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
         boxShadow: [
           BoxShadow(
@@ -59,7 +59,7 @@ class FloatingCartBar extends StatelessWidget {
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
             child: const Text(
@@ -67,7 +67,7 @@ class FloatingCartBar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: AppColors.primaryBrown,
+                color: AppColors.darkBrown,
               ),
             ),
           ),
@@ -76,4 +76,3 @@ class FloatingCartBar extends StatelessWidget {
     );
   }
 }
-

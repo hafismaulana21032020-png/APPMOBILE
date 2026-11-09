@@ -25,37 +25,79 @@ class HomeBottomNavBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 60,
+          height: 64,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(
                 index: 0,
                 icon: Icons.home_outlined,
-                activeIcon: Icons.home,
+                activeIcon: Icons.home_outlined,
                 label: 'Home',
               ),
               _buildNavItem(
                 index: 1,
                 icon: Icons.shopping_bag_outlined,
-                activeIcon: Icons.shopping_bag,
+                activeIcon: Icons.shopping_bag_outlined,
                 label: 'Pesanan',
                 badgeCount: orderBadgeCount,
               ),
-              _buildNavItem(
+              _buildAiAssistantNavItem(
                 index: 2,
-                icon: Icons.auto_awesome_outlined,
-                activeIcon: Icons.auto_awesome,
                 label: 'Asisten AI',
               ),
               _buildNavItem(
                 index: 3,
                 icon: Icons.person_outline,
-                activeIcon: Icons.person,
+                activeIcon: Icons.person_outline,
                 label: 'Akun',
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAiAssistantNavItem({
+    required int index,
+    required String label,
+  }) {
+    final isSelected = currentIndex == index;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => onTap(index),
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryBrown,
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.auto_awesome,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? AppColors.darkBrown : AppColors.secondaryText,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -69,7 +111,7 @@ class HomeBottomNavBar extends StatelessWidget {
     int? badgeCount,
   }) {
     final isSelected = currentIndex == index;
-    final color = isSelected ? AppColors.primaryBrown : AppColors.secondaryText;
+    final color = isSelected ? AppColors.darkBrown : AppColors.secondaryText;
 
     return Expanded(
       child: InkWell(
@@ -131,4 +173,3 @@ class HomeBottomNavBar extends StatelessWidget {
     );
   }
 }
-

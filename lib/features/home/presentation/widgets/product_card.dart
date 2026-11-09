@@ -20,7 +20,7 @@ class ProductCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: AppColors.inputBorderColor, width: 1),
+        border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -64,7 +64,7 @@ class ProductCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.bold,
                     color: AppColors.darkText,
                   ),
@@ -99,7 +99,7 @@ class ProductCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primaryBrown,
+                        color: AppColors.darkBrown,
                       ),
                     ),
                   ),
@@ -112,4 +112,3 @@ class ProductCard extends StatelessWidget {
     );
   }
 }
-

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class CategoryFilterList extends StatelessWidget {
@@ -21,7 +20,7 @@ class CategoryFilterList extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = category.toLowerCase() == selectedCategory.toLowerCase();
@@ -32,11 +31,11 @@ class CategoryFilterList extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.darkBrown : AppColors.chipInactiveBg,
+                color: isSelected ? AppColors.primaryBrown : Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isSelected ? Colors.transparent : AppColors.inputBorderColor,
-                  width: 1,
+                  width: 1.0,
                 ),
               ),
               alignment: Alignment.center,
@@ -45,7 +44,7 @@ class CategoryFilterList extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? Colors.white : AppColors.darkText,
+                  color: isSelected ? Colors.white : AppColors.darkBrown,
                 ),
               ),
             ),
@@ -55,4 +54,3 @@ class CategoryFilterList extends StatelessWidget {
     );
   }
 }
-

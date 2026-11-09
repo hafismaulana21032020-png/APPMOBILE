@@ -40,6 +40,7 @@ class AuthHeaderBar extends StatelessWidget {
               'BreakFree',
               style: AppTextStyles.brandTitle,
             ),
+            SizedBox(height: 2),
             Text(
               'Malang, Indonesia',
               style: AppTextStyles.brandSubtitle,
@@ -50,4 +51,3 @@ class AuthHeaderBar extends StatelessWidget {
     );
   }
 }
-

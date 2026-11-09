@@ -29,17 +29,18 @@ class CustomTextField extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: AppColors.inputBorderColor, width: 1.2),
+        border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
       ),
       child: TextField(
         controller: controller,
         obscureText: isObscure,
         keyboardType: keyboardType,
-        style: const TextStyle(fontSize: 14, color: AppColors.darkText),
+        style: AppTextStyles.inputText,
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: AppTextStyles.inputHint,
           prefixIcon: Icon(prefixIcon, color: AppColors.iconColor, size: 20),
+          prefixIconConstraints: const BoxConstraints(minWidth: 46, minHeight: 46),
           suffixIcon: suffixIcon,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -52,7 +53,7 @@ class CustomTextField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label!, style: AppTextStyles.inputLabel),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           textField,
         ],
       );

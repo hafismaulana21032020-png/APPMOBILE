@@ -18,11 +18,10 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Akun Dummy default agar bisa langsung dites
   final TextEditingController _emailController =
-      TextEditingController(text: 'breakfree@gmail.com');
+      TextEditingController(text: 'hafizizzza@gmail.com');
   final TextEditingController _passwordController =
-      TextEditingController(text: 'kopi1234');
+      TextEditingController(text: 'AnakLuarGerbang');
   bool _isObscurePassword = true;
 
   @override
@@ -73,26 +72,27 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: AppDimensions.xxl,
-            vertical: AppDimensions.lg,
+            vertical: AppDimensions.md,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Custom Header Bar
-              AuthHeaderBar(
-                onBackPressed: () {},
+              // Header Brand (BreakFree - Malang, Indonesia)
+              const AuthHeaderBar(
+                showBackButton: false,
               ),
-              const SizedBox(height: AppDimensions.xl),
+              const SizedBox(height: AppDimensions.md),
 
               // Banner Gambar Kopi
               const CoffeeBanner(),
-              const SizedBox(height: AppDimensions.xxl),
+              const SizedBox(height: AppDimensions.xl),
 
-              // Judul Halaman
+              // Judul & Deskripsi Halaman
               const Text(
                 'Selamat datang kembali!',
                 style: AppTextStyles.headingLarge,
@@ -104,59 +104,12 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: AppDimensions.xl),
 
-              // Info Box Akun Demo
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.cardBgColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.inputBorderColor, width: 1.2),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.key_rounded,
-                      size: 20,
-                      color: AppColors.primaryBrown,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'Akun Demo (Otomatis Terisi):',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryBrown,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Email: breakfree@gmail.com\nSandi: kopi1234',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.darkText,
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppDimensions.lg),
-
               // Input Email
               CustomTextField(
                 label: 'Email',
                 controller: _emailController,
-                hintText: 'Masukkan email kamu',
-                prefixIcon: Icons.mail_outline,
+                hintText: 'hafizizzza@gmail.com',
+                prefixIcon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: AppDimensions.lg),
@@ -166,14 +119,14 @@ class _LoginPageState extends State<LoginPage> {
                 label: 'Kata sandi',
                 controller: _passwordController,
                 hintText: 'Masukkan kata sandi',
-                prefixIcon: Icons.lock_outline,
+                prefixIcon: Icons.lock_outline_rounded,
                 isObscure: _isObscurePassword,
                 suffixIcon: IconButton(
                   icon: Icon(
                     _isObscurePassword
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
-                    color: AppColors.secondaryText,
+                    color: AppColors.iconColor,
                     size: 20,
                   ),
                   onPressed: () {
@@ -183,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                   },
                 ),
               ),
-              const SizedBox(height: AppDimensions.sm),
+              const SizedBox(height: AppDimensions.md),
 
               // Lupa Kata Sandi
               Align(
@@ -203,7 +156,7 @@ class _LoginPageState extends State<LoginPage> {
                 text: 'Masuk',
                 onPressed: _onLogin,
               ),
-              const SizedBox(height: AppDimensions.xl),
+              const SizedBox(height: AppDimensions.lg),
 
               // Footer Pindah ke Register Page
               Center(
@@ -212,7 +165,7 @@ class _LoginPageState extends State<LoginPage> {
                   child: RichText(
                     text: const TextSpan(
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         color: AppColors.secondaryText,
                       ),
                       children: [
@@ -227,6 +180,26 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: AppDimensions.lg),
+
+              // Catatan Keamanan Data
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(
+                      Icons.shield_outlined,
+                      size: 15,
+                      color: AppColors.secondaryText,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Data akunmu tersimpan dengan aman',
+                      style: AppTextStyles.securityNote,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppDimensions.sm),
             ],
           ),
         ),

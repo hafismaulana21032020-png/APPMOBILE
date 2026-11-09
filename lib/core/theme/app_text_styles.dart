@@ -6,22 +6,24 @@ class AppTextStyles {
 
   // Brand Header
   static const TextStyle brandTitle = TextStyle(
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: FontWeight.bold,
-    color: AppColors.primaryBrown,
+    color: AppColors.darkBrown,
+    letterSpacing: -0.3,
   );
 
   static const TextStyle brandSubtitle = TextStyle(
     fontSize: 12,
+    fontWeight: FontWeight.w400,
     color: AppColors.secondaryText,
   );
 
   // Headings
   static const TextStyle headingLarge = TextStyle(
-    fontSize: 22,
+    fontSize: 23,
     fontWeight: FontWeight.bold,
     color: AppColors.darkText,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   );
 
   static const TextStyle headingMedium = TextStyle(
@@ -33,8 +35,9 @@ class AppTextStyles {
   // Subtitles & Body
   static const TextStyle bodyDescription = TextStyle(
     fontSize: 13,
+    fontWeight: FontWeight.w400,
     color: AppColors.secondaryText,
-    height: 1.4,
+    height: 1.35,
   );
 
   static const TextStyle bodyMedium = TextStyle(
@@ -49,14 +52,20 @@ class AppTextStyles {
 
   // Form
   static const TextStyle inputLabel = TextStyle(
-    fontSize: 13,
-    fontWeight: FontWeight.w600,
-    color: AppColors.darkText,
+    fontSize: 13.5,
+    fontWeight: FontWeight.bold,
+    color: AppColors.darkBrown,
   );
 
   static const TextStyle inputHint = TextStyle(
     color: AppColors.hintColor,
-    fontSize: 13,
+    fontSize: 13.5,
+  );
+
+  static const TextStyle inputText = TextStyle(
+    fontSize: 13.5,
+    fontWeight: FontWeight.w500,
+    color: AppColors.darkText,
   );
 
   static const TextStyle helperText = TextStyle(
@@ -66,21 +75,28 @@ class AppTextStyles {
 
   // Buttons & Links
   static const TextStyle button = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.bold,
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
     color: Colors.white,
+    letterSpacing: 0.2,
   );
 
   static const TextStyle linkText = TextStyle(
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: FontWeight.w600,
-    color: AppColors.primaryBrown,
+    color: AppColors.darkBrown,
   );
 
   static const TextStyle linkTextBold = TextStyle(
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: FontWeight.bold,
-    color: AppColors.primaryBrown,
+    color: AppColors.darkBrown,
+  );
+
+  // Security footer note
+  static const TextStyle securityNote = TextStyle(
+    fontSize: 11.5,
+    fontWeight: FontWeight.w400,
+    color: AppColors.secondaryText,
   );
 }
-

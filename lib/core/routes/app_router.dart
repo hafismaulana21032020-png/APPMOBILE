@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/home/presentation/pages/coffee_menu_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/account/presentation/pages/account_page.dart';
+import '../../features/cart/presentation/pages/cart_page.dart';
 import 'app_routes.dart';
 
 class AppRouter {
@@ -29,6 +32,21 @@ class AppRouter {
       case AppRoutes.home:
         return MaterialPageRoute(
           builder: (_) => const HomePage(),
+          settings: settings,
+        );
+      case AppRoutes.coffeeMenu:
+        return MaterialPageRoute(
+          builder: (_) => const CoffeeMenuPage(),
+          settings: settings,
+        );
+      case AppRoutes.account:
+        return MaterialPageRoute(
+          builder: (_) => const AccountPage(),
+          settings: settings,
+        );
+      case AppRoutes.cart:
+        return MaterialPageRoute(
+          builder: (_) => const CartPage(),
           settings: settings,
         );
       default:
