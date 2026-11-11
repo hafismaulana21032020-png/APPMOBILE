@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../cart/domain/services/cart_service.dart';
 import 'package:breakfree_app/features/home/data/menu_data.dart';
 import '../../domain/models/product_model.dart';
 import '../widgets/category_filter_list.dart';
@@ -25,9 +26,6 @@ class _HomePageState extends State<HomePage> {
   String _selectedCategory = 'kopi';
   String _searchQuery = '';
 
-  int _cartItemCount = 2;
-  int _cartTotalPrice = 43000;
-
   List<ProductModel> get _filteredProducts {
     return breakfreeMenuItems.where((product) {
       final matchesCategory =
@@ -40,17 +38,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onAddToCart(ProductModel product) {
-    setState(() {
-      _cartItemCount++;
-      _cartTotalPrice += product.price;
-    });
+    CartService.instance.addProduct(product);
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${product.name} berhasil ditambahkan!'),
+        content: Text('${product.name} masuk ke keranjang belanja!'),
         backgroundColor: AppColors.primaryBrown,
-        duration: const Duration(seconds: 1),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'Lihat',
+          textColor: AppColors.buttonYellow,
+          onPressed: _onViewCart,
+        ),
       ),
     );
   }
@@ -61,9 +61,15 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: SafeArea(
+    return AnimatedBuilder(
+      animation: CartService.instance,
+      builder: (context, _) {
+        final cartCount = CartService.instance.totalItemCount;
+        final cartSubtotal = CartService.instance.subtotal;
+
+        return Scaffold(
+          backgroundColor: AppColors.backgroundColor,
+          body: SafeArea(
         child: Stack(
           children: [
             // Konten Utama Scrollable
@@ -103,6 +109,12 @@ class _HomePageState extends State<HomePage> {
                       });
                       if (cat.toLowerCase() == 'kopi') {
                         Navigator.pushNamed(context, AppRoutes.coffeeMenu);
+                      } else if (cat.toLowerCase() == 'non-kopi') {
+                        Navigator.pushNamed(context, AppRoutes.nonCoffee);
+                      } else if (cat.toLowerCase() == 'makanan') {
+                        Navigator.pushNamed(context, AppRoutes.foodMenu);
+                      } else if (cat.toLowerCase() == 'snack') {
+                        Navigator.pushNamed(context, AppRoutes.snackMenu);
                       }
                     },
                   ),
@@ -174,22 +186,23 @@ class _HomePageState extends State<HomePage> {
             ),
 
             // Floating Cart Bar di atas Bottom Nav Bar
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: FloatingCartBar(
-                itemCount: _cartItemCount,
-                totalPrice: _cartTotalPrice,
-                onViewCart: _onViewCart,
+            if (cartCount > 0)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: FloatingCartBar(
+                  itemCount: cartCount,
+                  totalPrice: cartSubtotal,
+                  onViewCart: _onViewCart,
+                ),
               ),
-            ),
           ],
         ),
       ),
       bottomNavigationBar: HomeBottomNavBar(
         currentIndex: _currentNavIndex,
-        orderBadgeCount: _cartItemCount,
+        orderBadgeCount: cartCount,
         onTap: (index) {
           setState(() {
             _currentNavIndex = index;
@@ -201,6 +214,8 @@ class _HomePageState extends State<HomePage> {
           }
         },
       ),
+    );
+      },
     );
   }
 }

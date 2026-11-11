@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/cart_item_model.dart';
+import '../../domain/services/cart_service.dart';
 import '../widgets/cart_item_card.dart';
 
 class CartPage extends StatefulWidget {
@@ -16,25 +16,7 @@ class _CartPageState extends State<CartPage> {
   final TextEditingController _promoController =
       TextEditingController(text: 'KODE PROMO: KOPIKAMPUS');
 
-  // List Item Keranjang
-  final List<CartItemModel> _cartItems = [
-    CartItemModel(
-      id: '1',
-      name: 'Kopi Susu Gula Aren',
-      options: 'Regular, Normal Sugar, Oatmilk',
-      price: 25000,
-      quantity: 1,
-      image: AppAssets.breakfreeArenLatte,
-    ),
-    CartItemModel(
-      id: '2',
-      name: 'Croissant Almond',
-      options: 'Original Butter pastry',
-      price: 26000,
-      quantity: 1,
-      image: 'assets/images/croissant_almond.jpg',
-    ),
-  ];
+  List<CartItemModel> get _cartItems => CartService.instance.items;
 
   // Promo terpasang (20% diskon)
   bool _isPromoApplied = true;
@@ -73,43 +55,37 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _onIncrement(int index) {
-    setState(() {
-      _cartItems[index].quantity++;
-    });
+    CartService.instance.increment(index);
   }
 
   void _onDecrement(int index) {
-    setState(() {
-      if (_cartItems[index].quantity > 1) {
-        _cartItems[index].quantity--;
-      } else {
-        // Tampilkan konfirmasi hapus item
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Hapus Item?'),
-            content: Text(
-                'Apakah Anda ingin menghapus ${_cartItems[index].name} dari keranjang?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Batal'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  setState(() {
-                    _cartItems.removeAt(index);
-                  });
-                },
-                child: const Text('Hapus',
-                    style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          ),
-        );
-      }
-    });
+    if (_cartItems[index].quantity > 1) {
+      CartService.instance.decrement(index);
+    } else {
+      // Tampilkan konfirmasi hapus item
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Hapus Item?'),
+          content: Text(
+              'Apakah Anda ingin menghapus ${_cartItems[index].name} dari keranjang?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                CartService.instance.removeItem(index);
+              },
+              child: const Text('Hapus',
+                  style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   void _applyPromo() {
@@ -169,6 +145,7 @@ class _CartPageState extends State<CartPage> {
         actions: [
           ElevatedButton(
             onPressed: () {
+              CartService.instance.clear();
               Navigator.pop(ctx);
               Navigator.pop(context); // kembali ke halaman sebelumnya
             },
@@ -187,12 +164,15 @@ class _CartPageState extends State<CartPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ================= HEADER =================
+    return AnimatedBuilder(
+      animation: CartService.instance,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: AppColors.backgroundColor,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // ================= HEADER =================
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               child: Row(
@@ -517,6 +497,8 @@ class _CartPageState extends State<CartPage> {
           ],
         ),
       ),
+        );
+      },
     );
   }
 }

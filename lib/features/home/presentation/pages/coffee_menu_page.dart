@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../cart/domain/services/cart_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
 import '../widgets/coffee_list_item_card.dart';
@@ -18,8 +19,6 @@ class CoffeeMenuPage extends StatefulWidget {
 
 class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
   String? _selectedSubcategory;
-  int _cartItemCount = 2;
-  int _cartTotalPrice = 43000;
   int _currentNavIndex = 0;
 
   List<ProductModel> get _hotCoffeeProducts => breakfreeMenuItems
@@ -35,17 +34,19 @@ class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
       .toList();
 
   void _onAddToCart(ProductModel product) {
-    setState(() {
-      _cartItemCount++;
-      _cartTotalPrice += product.price;
-    });
+    CartService.instance.addProduct(product);
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${product.name} berhasil ditambahkan!'),
+        content: Text('${product.name} masuk ke keranjang belanja!'),
         backgroundColor: AppColors.primaryBrown,
-        duration: const Duration(seconds: 1),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'Lihat',
+          textColor: AppColors.buttonYellow,
+          onPressed: _onViewCart,
+        ),
       ),
     );
   }
@@ -60,8 +61,14 @@ class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
     final showIce = _selectedSubcategory == null || _selectedSubcategory == 'Ice Coffee';
     final showCube = _selectedSubcategory == null || _selectedSubcategory == 'Ice Cube';
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+    return AnimatedBuilder(
+      animation: CartService.instance,
+      builder: (context, _) {
+        final cartCount = CartService.instance.totalItemCount;
+        final cartSubtotal = CartService.instance.subtotal;
+
+        return Scaffold(
+          backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
         child: Stack(
           children: [
@@ -241,22 +248,23 @@ class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
             ),
 
             // Floating Cart Bar di atas Bottom Nav Bar
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: FloatingCartBar(
-                itemCount: _cartItemCount,
-                totalPrice: _cartTotalPrice,
-                onViewCart: _onViewCart,
+            if (cartCount > 0)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: FloatingCartBar(
+                  itemCount: cartCount,
+                  totalPrice: cartSubtotal,
+                  onViewCart: _onViewCart,
+                ),
               ),
-            ),
           ],
         ),
       ),
       bottomNavigationBar: HomeBottomNavBar(
         currentIndex: _currentNavIndex,
-        orderBadgeCount: _cartItemCount,
+        orderBadgeCount: cartCount,
         onTap: (index) {
           if (index == 0) {
             Navigator.pop(context);
@@ -271,6 +279,8 @@ class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
           }
         },
       ),
+    );
+      },
     );
   }
 }

@@ -9,4 +9,8 @@ class AppRoutes {
   static const String coffeeMenu = '/coffee-menu';
   static const String account = '/account';
   static const String cart = '/cart';
+  static const String nonCoffee = '/non-coffee';
+  static const String foodMenu = '/food-menu';
+  static const String snackMenu = '/snack-menu';
+  static const String profile = '/profile';
 }

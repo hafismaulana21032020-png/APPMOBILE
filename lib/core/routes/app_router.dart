@@ -6,6 +6,10 @@ import '../../features/home/presentation/pages/coffee_menu_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/account/presentation/pages/account_page.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
+import '../../features/home/presentation/pages/non_coffee_menu_page.dart';
+import '../../features/home/presentation/pages/food_menu_page.dart';
+import '../../features/home/presentation/pages/snack_menu_page.dart';
+import '../../features/account/presentation/pages/profile_page.dart';
 import 'app_routes.dart';
 
 class AppRouter {
@@ -47,6 +51,26 @@ class AppRouter {
       case AppRoutes.cart:
         return MaterialPageRoute(
           builder: (_) => const CartPage(),
+          settings: settings,
+        );
+      case AppRoutes.nonCoffee:
+        return MaterialPageRoute(
+          builder: (_) => const NonCoffeeMenuPage(),
+          settings: settings,
+        );
+      case AppRoutes.foodMenu:
+        return MaterialPageRoute(
+          builder: (_) => const FoodMenuPage(),
+          settings: settings,
+        );
+      case AppRoutes.snackMenu:
+        return MaterialPageRoute(
+          builder: (_) => const SnackMenuPage(),
+          settings: settings,
+        );
+      case AppRoutes.profile:
+        return MaterialPageRoute(
+          builder: (_) => const ProfilePage(),
           settings: settings,
         );
       default:
