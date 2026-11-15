@@ -4,10 +4,10 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/app_validators.dart';
 import '../../../../core/widgets/auth_header_bar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
-import 'package:breakfree_app/features/home/presentation/pages/home_page.dart';
 import '../widgets/coffee_banner.dart';
 
 class LoginPage extends StatefulWidget {
@@ -45,6 +45,16 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
+    if (!AppValidators.isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Format email tidak valid'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -54,11 +64,8 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
 
-    // Navigasi langsung ke HomePage
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
-    );
+    // Navigasi langsung ke HomePage melalui AppRoutes
+    Navigator.pushReplacementNamed(context, AppRoutes.home);
   }
 
   void _navigateToRegister() {
@@ -192,9 +199,12 @@ class _LoginPageState extends State<LoginPage> {
                       color: AppColors.secondaryText,
                     ),
                     SizedBox(width: 6),
-                    Text(
-                      'Data akunmu tersimpan dengan aman',
-                      style: AppTextStyles.securityNote,
+                    Flexible(
+                      child: Text(
+                        'Data akunmu tersimpan dengan aman',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.securityNote,
+                      ),
                     ),
                   ],
                 ),

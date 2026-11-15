@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_dimensions.dart';
-import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_validators.dart';
 import '../../../cart/domain/services/cart_service.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
+import '../../../home/presentation/widgets/home_nav_helper.dart';
 import '../../domain/services/user_service.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -19,8 +20,6 @@ class _ProfilePageState extends State<ProfilePage> {
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
   late final TextEditingController _birthDateController;
-
-  int _currentNavIndex = 3;
 
   @override
   void initState() {
@@ -64,6 +63,7 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
 
+    if (!mounted) return;
     if (pickedDate != null) {
       final months = [
         'Januari',
@@ -166,6 +166,16 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
+    if (!AppValidators.isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Format email tidak valid'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     UserService.instance.updateProfile(
       name: name,
       email: email,
@@ -204,7 +214,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 6),
         Container(
-          height: 48,
+          constraints: const BoxConstraints(minHeight: 48),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
@@ -290,13 +300,17 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Text(
-                        'Profil Akun',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
-                          letterSpacing: -0.3,
+                      const Expanded(
+                        child: Text(
+                          'Profil Akun',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                            letterSpacing: -0.3,
+                          ),
                         ),
                       ),
                     ],
@@ -554,18 +568,14 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           bottomNavigationBar: HomeBottomNavBar(
-            currentIndex: _currentNavIndex,
+            currentIndex: 3,
             orderBadgeCount: cartCount,
-            onTap: (index) {
-              setState(() => _currentNavIndex = index);
-              if (index == 0) {
-                Navigator.popUntil(context, (route) => route.isFirst);
-              } else if (index == 1) {
-                Navigator.pushNamed(context, AppRoutes.cart);
-              } else if (index == 3) {
-                Navigator.pop(context); // back to AccountPage
-              }
-            },
+            onTap: (index) => handleSecondaryBottomNavTap(
+              context,
+              index,
+              currentIndex: 3,
+              popOnCurrent: true,
+            ),
           ),
         );
       },

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/app_validators.dart';
 import '../../../../core/widgets/auth_header_bar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
@@ -32,6 +33,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Silakan masukkan email kamu terlebih dahulu'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (!AppValidators.isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Format email tidak valid'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -149,9 +160,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       color: AppColors.secondaryText,
                     ),
                     SizedBox(width: 6),
-                    Text(
-                      'Data akunmu tersimpan dengan aman',
-                      style: AppTextStyles.securityNote,
+                    Flexible(
+                      child: Text(
+                        'Data akunmu tersimpan dengan aman',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.securityNote,
+                      ),
                     ),
                   ],
                 ),

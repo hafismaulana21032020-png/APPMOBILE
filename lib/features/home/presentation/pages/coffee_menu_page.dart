@@ -9,6 +9,7 @@ import '../../domain/models/product_model.dart';
 import '../widgets/coffee_list_item_card.dart';
 import '../widgets/floating_cart_bar.dart';
 import '../widgets/home_bottom_nav_bar.dart';
+import '../widgets/home_nav_helper.dart';
 
 class CoffeeMenuPage extends StatefulWidget {
   const CoffeeMenuPage({super.key});
@@ -19,18 +20,20 @@ class CoffeeMenuPage extends StatefulWidget {
 
 class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
   String? _selectedSubcategory;
-  int _currentNavIndex = 0;
 
   List<ProductModel> get _hotCoffeeProducts => breakfreeMenuItems
-      .where((p) => p.category == 'kopi' && p.subcategory == 'Hot Coffee')
+      .where((p) =>
+          p.category.toLowerCase() == 'kopi' && p.subcategory == 'Hot Coffee')
       .toList();
 
   List<ProductModel> get _iceCoffeeProducts => breakfreeMenuItems
-      .where((p) => p.category == 'kopi' && p.subcategory == 'Ice Coffee')
+      .where((p) =>
+          p.category.toLowerCase() == 'kopi' && p.subcategory == 'Ice Coffee')
       .toList();
 
   List<ProductModel> get _iceCubeProducts => breakfreeMenuItems
-      .where((p) => p.category == 'kopi' && p.subcategory == 'Ice Cube')
+      .where((p) =>
+          p.category.toLowerCase() == 'kopi' && p.subcategory == 'Ice Cube')
       .toList();
 
   void _onAddToCart(ProductModel product) {
@@ -98,13 +101,17 @@ class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Text(
-                        'Kategori: Kopi',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
-                          letterSpacing: -0.3,
+                      const Expanded(
+                        child: Text(
+                          'Kategori: Kopi',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                            letterSpacing: -0.3,
+                          ),
                         ),
                       ),
                     ],
@@ -263,21 +270,13 @@ class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
         ),
       ),
       bottomNavigationBar: HomeBottomNavBar(
-        currentIndex: _currentNavIndex,
+        currentIndex: 1,
         orderBadgeCount: cartCount,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pop(context);
-          } else if (index == 1) {
-            Navigator.pushNamed(context, AppRoutes.cart);
-          } else if (index == 3) {
-            Navigator.pushNamed(context, AppRoutes.account);
-          } else {
-            setState(() {
-              _currentNavIndex = index;
-            });
-          }
-        },
+        onTap: (index) => handleSecondaryBottomNavTap(
+          context,
+          index,
+          currentIndex: -1,
+        ),
       ),
     );
       },

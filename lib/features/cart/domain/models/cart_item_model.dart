@@ -1,3 +1,5 @@
+import '../../../../core/utils/app_formatters.dart';
+
 class CartItemModel {
   final String id;
   final String name;
@@ -17,12 +19,6 @@ class CartItemModel {
 
   int get totalPrice => price * quantity;
 
-  String get formattedPrice {
-    final str = price.toString();
-    if (str.length <= 3) return 'Rp $str';
-    final thousands = str.substring(0, str.length - 3);
-    final rest = str.substring(str.length - 3);
-    return 'Rp $thousands.$rest';
-  }
+  String get formattedPrice => AppFormatters.formatRupiah(price);
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_formatters.dart';
 import '../../domain/models/product_model.dart';
 
 class IndomieLevelOption {
@@ -9,13 +10,7 @@ class IndomieLevelOption {
 
   const IndomieLevelOption({required this.level, required this.price});
 
-  String get formattedPrice {
-    final priceStr = price.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-        );
-    return 'Rp $priceStr';
-  }
+  String get formattedPrice => AppFormatters.formatRupiah(price);
 }
 
 class IndomieItemCard extends StatefulWidget {
@@ -39,9 +34,11 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedOption = widget.levelOptions.isNotEmpty
-        ? widget.levelOptions[_selectedLevelIndex]
-        : null;
+    final safeIndex = widget.levelOptions.isEmpty
+        ? 0
+        : _selectedLevelIndex.clamp(0, widget.levelOptions.length - 1);
+    final selectedOption =
+        widget.levelOptions.isNotEmpty ? widget.levelOptions[safeIndex] : null;
 
     return Container(
       padding: const EdgeInsets.all(12.0),
@@ -167,14 +164,19 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'Mulai ${widget.product.formattedPrice}',
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkText,
+              Expanded(
+                child: Text(
+                  'Mulai ${widget.product.formattedPrice}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkText,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Material(
                 color: Colors.transparent,
                 child: InkWell(

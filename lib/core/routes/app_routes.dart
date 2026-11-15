@@ -6,6 +6,7 @@ class AppRoutes {
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
   static const String home = '/home';
+  static const String menu = '/menu';
   static const String coffeeMenu = '/coffee-menu';
   static const String account = '/account';
   static const String cart = '/cart';

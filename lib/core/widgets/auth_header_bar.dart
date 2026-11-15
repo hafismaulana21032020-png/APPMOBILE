@@ -33,19 +33,21 @@ class AuthHeaderBar extends StatelessWidget {
           ),
           const SizedBox(width: 12),
         ],
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'BreakFree',
-              style: AppTextStyles.brandTitle,
-            ),
-            SizedBox(height: 2),
-            Text(
-              'Malang, Indonesia',
-              style: AppTextStyles.brandSubtitle,
-            ),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'BreakFree',
+                style: AppTextStyles.brandTitle,
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Malang, Indonesia',
+                style: AppTextStyles.brandSubtitle,
+              ),
+            ],
+          ),
         ),
       ],
     );

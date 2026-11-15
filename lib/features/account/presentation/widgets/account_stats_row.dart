@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_formatters.dart';
 
 class AccountStatsRow extends StatelessWidget {
   final int poin;
@@ -27,9 +28,7 @@ class AccountStatsRow extends StatelessWidget {
           children: [
             _StatItem(
               label: 'Poin',
-              value: poin >= 1000
-                  ? '${(poin / 1000).toStringAsFixed(0)}.${(poin % 1000).toString().padLeft(3, '0')}'
-                  : poin.toString(),
+              value: AppFormatters.formatThousands(poin),
             ),
             const VerticalDivider(
               color: AppColors.inputBorderColor,

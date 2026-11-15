@@ -3,6 +3,8 @@ class AppAssets {
 
   // Images
   static const String coffeeBanner = 'assets/images/coffee_banner.jpg';
+  static const String homePromoBanner = 'assets/images/home_promo_banner.jpg';
+  static const String aboutBreakfree = 'assets/images/about_breakfree.jpg';
   static const String cubeOri = 'assets/images/cube_ori.jpg';
   static const String cubeMoca = 'assets/images/cube_moca.jpg';
   static const String cubeTiramisu = 'assets/images/cube_tiramisu.jpg';

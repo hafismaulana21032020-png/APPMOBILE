@@ -8,6 +8,7 @@ import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
 import '../widgets/floating_cart_bar.dart';
 import '../widgets/home_bottom_nav_bar.dart';
+import '../widgets/home_nav_helper.dart';
 import '../widgets/non_coffee_list_item_card.dart';
 
 class SnackMenuPage extends StatefulWidget {
@@ -19,7 +20,6 @@ class SnackMenuPage extends StatefulWidget {
 
 class _SnackMenuPageState extends State<SnackMenuPage> {
   final String _selectedSubcategory = 'Semua';
-  int _currentNavIndex = 0;
 
   List<ProductModel> get _snackProducts => breakfreeMenuItems
       .where((p) => p.category.toLowerCase() == 'snack')
@@ -51,28 +51,35 @@ class _SnackMenuPageState extends State<SnackMenuPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 3.5,
-              height: 16,
-              decoration: BoxDecoration(
-                color: AppColors.primaryBrown,
-                borderRadius: BorderRadius.circular(2),
+        Expanded(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 3.5,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBrown,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppColors.darkText,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkText,
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+        const SizedBox(width: 8),
         Text(
           '$count menu',
           style: const TextStyle(
@@ -130,13 +137,17 @@ class _SnackMenuPageState extends State<SnackMenuPage> {
                             ),
                           ),
                           const SizedBox(width: 14),
-                          const Text(
-                            'Kategori: Snack',
-                            style: TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.darkText,
-                              letterSpacing: -0.3,
+                          const Expanded(
+                            child: Text(
+                              'Kategori: Snack',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkText,
+                                letterSpacing: -0.3,
+                              ),
                             ),
                           ),
                         ],
@@ -230,18 +241,13 @@ class _SnackMenuPageState extends State<SnackMenuPage> {
             ),
           ),
           bottomNavigationBar: HomeBottomNavBar(
-            currentIndex: _currentNavIndex,
+            currentIndex: 1,
             orderBadgeCount: cartCount,
-            onTap: (index) {
-              setState(() => _currentNavIndex = index);
-              if (index == 0) {
-                Navigator.popUntil(context, (route) => route.isFirst);
-              } else if (index == 1) {
-                Navigator.pushNamed(context, AppRoutes.cart);
-              } else if (index == 3) {
-                Navigator.pushNamed(context, AppRoutes.account);
-              }
-            },
+            onTap: (index) => handleSecondaryBottomNavTap(
+              context,
+              index,
+              currentIndex: -1,
+            ),
           ),
         );
       },

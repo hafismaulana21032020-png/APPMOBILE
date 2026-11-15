@@ -2,7 +2,7 @@ import 'package:breakfree_app/core/constants/app_assets.dart';
 import '../domain/models/product_model.dart';
 
 const List<String> breakfreeCategories = [
-  'kopi',
+  'Kopi',
   'Non-Kopi',
   'Makanan',
   'Snack',

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_dimensions.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/app_validators.dart';
 import '../../../../core/widgets/auth_header_bar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../account/domain/services/user_service.dart';
 import '../widgets/auth_info_card.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -33,8 +36,69 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  }
+
   void _onRegister() {
-    // TODO: Connect with AuthBloc / Controller once BE is ready
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      _showError('Silakan lengkapi semua data pendaftaran terlebih dahulu');
+      return;
+    }
+
+    if (!AppValidators.isValidEmail(email)) {
+      _showError('Format email tidak valid');
+      return;
+    }
+
+    if (!AppValidators.isStrongPassword(password)) {
+      _showError('Kata sandi minimal 8 karakter dan mengandung huruf serta angka');
+      return;
+    }
+
+    if (password != confirmPassword) {
+      _showError('Konfirmasi kata sandi tidak cocok');
+      return;
+    }
+
+    if (!_isAgreed) {
+      _showError('Silakan setujui Syarat dan Ketentuan terlebih dahulu');
+      return;
+    }
+
+    final currentUser = UserService.instance;
+    currentUser.updateProfile(
+      name: name.toUpperCase(),
+      email: email,
+      phone: currentUser.phone,
+      birthDate: currentUser.birthDate,
+    );
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Akun berhasil dibuat! Selamat datang, $name'),
+        backgroundColor: AppColors.primaryBrown,
+        duration: const Duration(seconds: 1),
+      ),
+    );
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.home,
+      (route) => false,
+    );
   }
 
   @override

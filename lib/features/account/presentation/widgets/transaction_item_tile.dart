@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_formatters.dart';
 
 class TransactionItemTile extends StatelessWidget {
   final String orderId;
@@ -15,13 +16,7 @@ class TransactionItemTile extends StatelessWidget {
     this.status = 'Selesai',
   });
 
-  String _formatPrice(int price) {
-    final str = price.toString();
-    if (str.length <= 3) return 'Rp $str';
-    final thousands = str.substring(0, str.length - 3);
-    final rest = str.substring(str.length - 3);
-    return 'Rp $thousands.$rest';
-  }
+  String _formatPrice(int price) => AppFormatters.formatRupiah(price);
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +65,7 @@ class TransactionItemTile extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 8),
 
           // Amount + Status badge
           Column(

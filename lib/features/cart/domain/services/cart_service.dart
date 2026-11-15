@@ -27,6 +27,9 @@ class CartService extends ChangeNotifier {
     ),
   ];
 
+  String? _appliedPromoCode;
+  String? get appliedPromoCode => _appliedPromoCode;
+
   List<CartItemModel> get items => List.unmodifiable(_items);
 
   int get totalItemCount =>
@@ -34,6 +37,14 @@ class CartService extends ChangeNotifier {
 
   int get subtotal =>
       _items.fold(0, (sum, item) => sum + item.totalPrice);
+
+  void applyPromoCode(String? code) {
+    final normalized = code?.trim().toUpperCase();
+    _appliedPromoCode = (normalized == null || normalized.isEmpty)
+        ? null
+        : normalized;
+    notifyListeners();
+  }
 
   void addProduct(
     ProductModel product, {
@@ -88,8 +99,17 @@ class CartService extends ChangeNotifier {
     }
   }
 
+  void removeById(String id) {
+    final index = _items.indexWhere((item) => item.id == id);
+    if (index != -1) {
+      _items.removeAt(index);
+      notifyListeners();
+    }
+  }
+
   void clear() {
     _items.clear();
+    _appliedPromoCode = null;
     notifyListeners();
   }
 }

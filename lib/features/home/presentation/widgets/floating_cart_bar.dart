@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_formatters.dart';
 
 class FloatingCartBar extends StatelessWidget {
   final int itemCount;
@@ -14,13 +15,7 @@ class FloatingCartBar extends StatelessWidget {
     required this.onViewCart,
   });
 
-  String get _formattedTotalPrice {
-    final priceStr = totalPrice.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-        );
-    return 'Rp $priceStr';
-  }
+  String get _formattedTotalPrice => AppFormatters.formatRupiah(totalPrice);
 
   @override
   Widget build(BuildContext context) {
@@ -42,14 +37,19 @@ class FloatingCartBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Info Item & Total Harga
-          Text(
-            '$itemCount Item • $_formattedTotalPrice',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          Expanded(
+            child: Text(
+              '$itemCount Item • $_formattedTotalPrice',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
+          const SizedBox(width: 12),
 
           // Tombol Lihat Keranjang
           ElevatedButton(

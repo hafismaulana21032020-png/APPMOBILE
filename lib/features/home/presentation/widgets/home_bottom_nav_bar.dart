@@ -10,7 +10,7 @@ class HomeBottomNavBar extends StatelessWidget {
     super.key,
     required this.currentIndex,
     required this.onTap,
-    this.orderBadgeCount = 2,
+    this.orderBadgeCount = 0,
   });
 
   @override
@@ -24,23 +24,22 @@ class HomeBottomNavBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: 64,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(
                 index: 0,
                 icon: Icons.home_outlined,
-                activeIcon: Icons.home_outlined,
+                activeIcon: Icons.home_rounded,
                 label: 'Home',
               ),
               _buildNavItem(
                 index: 1,
-                icon: Icons.shopping_bag_outlined,
-                activeIcon: Icons.shopping_bag_outlined,
-                label: 'Pesanan',
-                badgeCount: orderBadgeCount,
+                icon: Icons.article_outlined,
+                activeIcon: Icons.article_rounded,
+                label: 'Menu',
               ),
               _buildAiAssistantNavItem(
                 index: 2,
@@ -49,7 +48,7 @@ class HomeBottomNavBar extends StatelessWidget {
               _buildNavItem(
                 index: 3,
                 icon: Icons.person_outline,
-                activeIcon: Icons.person_outline,
+                activeIcon: Icons.person_rounded,
                 label: 'Akun',
               ),
             ],
@@ -70,34 +69,44 @@ class HomeBottomNavBar extends StatelessWidget {
         onTap: () => onTap(index),
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: const BoxDecoration(
-                color: AppColors.primaryBrown,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.auto_awesome,
-                  color: Colors.white,
-                  size: 18,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryBrown,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.auto_awesome,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? AppColors.darkBrown : AppColors.secondaryText,
+              const SizedBox(height: 3),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 220),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected
+                        ? AppColors.darkBrown
+                        : AppColors.secondaryText,
+                  ),
+                  child: Text(label, maxLines: 1),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -108,7 +117,6 @@ class HomeBottomNavBar extends StatelessWidget {
     required IconData icon,
     required IconData activeIcon,
     required String label,
-    int? badgeCount,
   }) {
     final isSelected = currentIndex == index;
     final color = isSelected ? AppColors.darkBrown : AppColors.secondaryText;
@@ -118,56 +126,38 @@ class HomeBottomNavBar extends StatelessWidget {
         onTap: () => onTap(index),
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                transitionBuilder: (child, animation) =>
+                    ScaleTransition(scale: animation, child: child),
+                child: Icon(
                   isSelected ? activeIcon : icon,
+                  key: ValueKey<bool>(isSelected),
                   color: color,
                   size: 22,
                 ),
-                if (badgeCount != null && badgeCount > 0)
-                  Positioned(
-                    top: -4,
-                    right: -8,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        color: AppColors.badgeYellow,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Center(
-                        child: Text(
-                          badgeCount.toString(),
-                          style: const TextStyle(
-                            color: AppColors.darkText,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            height: 1.0,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: color,
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 220),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: color,
+                  ),
+                  child: Text(label, maxLines: 1),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

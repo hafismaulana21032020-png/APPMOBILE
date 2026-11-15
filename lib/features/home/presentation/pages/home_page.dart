@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cart/domain/services/cart_service.dart';
-import 'package:breakfree_app/features/home/data/menu_data.dart';
+import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
-import '../widgets/category_filter_list.dart';
+import '../controllers/home_tab_controller.dart';
+import '../widgets/ai_assistant_sheet.dart';
 import '../widgets/floating_cart_bar.dart';
 import '../widgets/home_bottom_nav_bar.dart';
+import '../widgets/home_bundle_card.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_promo_banner.dart';
 import '../widgets/home_search_bar.dart';
+import '../widgets/home_story_card.dart';
+import '../widgets/home_voucher_card.dart';
+import '../widgets/menu_list_view.dart';
 import '../widgets/product_card.dart';
 
 class HomePage extends StatefulWidget {
@@ -22,18 +28,31 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentNavIndex = 0;
-  String _selectedCategory = 'kopi';
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  List<ProductModel> get _filteredProducts {
+  static const ProductModel _bundleIceKopiSusu = ProductModel(
+    id: 'bundle-ice-kopi-susu',
+    name: '2 Ice Kopi Susu',
+    price: 28000,
+    category: 'kopi',
+    subcategory: 'Paket Berdua (2 Cup)',
+    description: 'Hemat Rp4.000 dari harga satuan untuk dinikmati berdua.',
+    image: AppAssets.breakfreeArenLatte,
+  );
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<ProductModel> get _searchResults {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return const [];
     return breakfreeMenuItems.where((product) {
-      final matchesCategory =
-          product.category.toLowerCase() == _selectedCategory.toLowerCase();
-      final matchesQuery = _searchQuery.isEmpty ||
-          product.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          product.description.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesQuery;
+      return product.name.toLowerCase().contains(query) ||
+          product.description.toLowerCase().contains(query);
     }).toList();
   }
 
@@ -55,74 +74,181 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _onToggleVoucher() {
+    final cartService = CartService.instance;
+    final isAlreadyApplied = cartService.appliedPromoCode == 'BREAK20';
+    cartService.applyPromoCode(isAlreadyApplied ? null : 'BREAK20');
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isAlreadyApplied
+              ? 'Voucher BREAK20 dilepas'
+              : 'Voucher BREAK20 diterapkan! Berlaku di keranjang.',
+        ),
+        backgroundColor: AppColors.primaryBrown,
+        duration: const Duration(seconds: 2),
+        action: isAlreadyApplied
+            ? null
+            : SnackBarAction(
+                label: 'Keranjang',
+                textColor: AppColors.buttonYellow,
+                onPressed: _onViewCart,
+              ),
+      ),
+    );
+  }
+
+  void _showAboutBreakFreeSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Tentang BreakFree Malang',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkText,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'BreakFree hadir di Malang sebagai tempat singgah nyaman untuk jeda kuliah, kerja, maupun nongkrong santai. Dari Kopi Susu Sarijan hingga menu hangat rumahan, semua diracik segar setiap hari.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.secondaryText,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetCtx);
+                      HomeTabController.instance.selectTab(1);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBrown,
+                      elevation: 0,
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const Text(
+                      'Jelajahi Daftar Menu',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _onViewCart() {
     Navigator.pushNamed(context, AppRoutes.cart);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: CartService.instance,
-      builder: (context, _) {
-        final cartCount = CartService.instance.totalItemCount;
-        final cartSubtotal = CartService.instance.subtotal;
+  Widget _buildHomeTab(bool isVoucherApplied) {
+    final results = _searchResults;
 
-        return Scaffold(
-          backgroundColor: AppColors.backgroundColor,
-          body: SafeArea(
-        child: Stack(
-          children: [
-            // Konten Utama Scrollable
-            SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.lg,
-                vertical: AppDimensions.md,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header Bar (BreakFree / Malang, Indonesia)
-                  const HomeHeader(),
-                  const SizedBox(height: 14),
+    return SingleChildScrollView(
+      key: const ValueKey<String>('home_tab_view'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.lg,
+        vertical: AppDimensions.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const HomeHeader(),
+          const SizedBox(height: 14),
 
-                  // Promo Banner Card (PROMO MAHASISWA / Diskon 20% Hari Ini!)
-                  const HomePromoBanner(),
-                  const SizedBox(height: 14),
+          const HomePromoBanner(),
+          const SizedBox(height: 14),
 
-                  // Search Bar
-                  HomeSearchBar(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 14),
+          HomeSearchBar(
+            controller: _searchController,
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+          ),
+          const SizedBox(height: 18),
 
-                  // Category Filter List (kopi, Non-Kopi, Makanan, Snack)
-                  CategoryFilterList(
-                    categories: breakfreeCategories,
-                    selectedCategory: _selectedCategory,
-                    onCategorySelected: (cat) {
-                      setState(() {
-                        _selectedCategory = cat;
-                      });
-                      if (cat.toLowerCase() == 'kopi') {
-                        Navigator.pushNamed(context, AppRoutes.coffeeMenu);
-                      } else if (cat.toLowerCase() == 'non-kopi') {
-                        Navigator.pushNamed(context, AppRoutes.nonCoffee);
-                      } else if (cat.toLowerCase() == 'makanan') {
-                        Navigator.pushNamed(context, AppRoutes.foodMenu);
-                      } else if (cat.toLowerCase() == 'snack') {
-                        Navigator.pushNamed(context, AppRoutes.snackMenu);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Judul Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 240),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: _searchQuery.trim().isNotEmpty
+                ? Column(
+                    key: ValueKey<String>('search_$_searchQuery'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hasil pencarian (${results.length})',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkText,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (results.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 36),
+                          child: Center(
+                            child: Text(
+                              'Tidak ada menu yang sesuai',
+                              style: TextStyle(color: AppColors.secondaryText),
+                            ),
+                          ),
+                        )
+                      else
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: results.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 14,
+                            mainAxisExtent: 230,
+                          ),
+                          itemBuilder: (context, index) {
+                            final product = results[index];
+                            return ProductCard(
+                              product: product,
+                              onAddToCart: () => _onAddToCart(product),
+                            );
+                          },
+                        ),
+                    ],
+                  )
+                : Column(
+                    key: const ValueKey<String>('home_featured_content'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Terpopuler di Malang',
@@ -133,88 +259,112 @@ class _HomePageState extends State<HomePage> {
                           letterSpacing: -0.3,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.coffeeMenu),
-                        child: const Text(
-                          'Lihat Semua',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.darkBrown,
-                          ),
-                        ),
+                      const SizedBox(height: 12),
+                      HomeVoucherCard(
+                        isApplied: isVoucherApplied,
+                        onApplyTap: _onToggleVoucher,
+                      ),
+                      const SizedBox(height: 12),
+                      HomeBundleCard(
+                        onTap: () => _onAddToCart(_bundleIceKopiSusu),
+                      ),
+                      const SizedBox(height: 14),
+                      HomeStoryCard(
+                        onExploreTap: _showAboutBreakFreeSheet,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+          ),
 
-                  // Grid Produk 2 Kolom
-                  if (_filteredProducts.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(
-                        child: Text(
-                          'Tidak ada menu yang sesuai',
-                          style: TextStyle(color: AppColors.secondaryText),
-                        ),
-                      ),
-                    )
-                  else
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _filteredProducts.length,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 14,
-                        childAspectRatio: 0.72,
-                      ),
-                      itemBuilder: (context, index) {
-                        final product = _filteredProducts[index];
-                        return ProductCard(
-                          product: product,
-                          onAddToCart: () => _onAddToCart(product),
-                        );
-                      },
-                    ),
-
-                  // Padding bawah agar item paling bawah tidak tertutup floating cart
-                  const SizedBox(height: 80),
-                ],
-              ),
-            ),
-
-            // Floating Cart Bar di atas Bottom Nav Bar
-            if (cartCount > 0)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: FloatingCartBar(
-                  itemCount: cartCount,
-                  totalPrice: cartSubtotal,
-                  onViewCart: _onViewCart,
-                ),
-              ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: HomeBottomNavBar(
-        currentIndex: _currentNavIndex,
-        orderBadgeCount: cartCount,
-        onTap: (index) {
-          setState(() {
-            _currentNavIndex = index;
-          });
-          if (index == 1) {
-            Navigator.pushNamed(context, AppRoutes.cart);
-          } else if (index == 3) {
-            Navigator.pushNamed(context, AppRoutes.account);
-          }
-        },
+          // Padding bawah agar konten tidak tertutup floating cart bar
+          const SizedBox(height: 84),
+        ],
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        CartService.instance,
+        HomeTabController.instance,
+      ]),
+      builder: (context, _) {
+        final cartCount = CartService.instance.totalItemCount;
+        final cartSubtotal = CartService.instance.subtotal;
+        final isVoucherApplied =
+            CartService.instance.appliedPromoCode == 'BREAK20';
+        final tabController = HomeTabController.instance;
+        final activeTab = tabController.currentIndex;
+        final movingForward =
+            tabController.currentIndex >= tabController.previousIndex;
+
+        return Scaffold(
+          backgroundColor: AppColors.backgroundColor,
+          body: SafeArea(
+            child: Stack(
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 340),
+                  reverseDuration: const Duration(milliseconds: 260),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final isIncoming = child.key ==
+                        ValueKey<String>(
+                          activeTab == 1 ? 'menu_tab_view' : 'home_tab_view',
+                        );
+                    final offsetBegin = movingForward
+                        ? (isIncoming
+                            ? const Offset(0.08, 0)
+                            : const Offset(-0.08, 0))
+                        : (isIncoming
+                            ? const Offset(-0.08, 0)
+                            : const Offset(0.08, 0));
+                    final slide = Tween<Offset>(
+                      begin: offsetBegin,
+                      end: Offset.zero,
+                    ).animate(animation);
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(position: slide, child: child),
+                    );
+                  },
+                  child: activeTab == 1
+                      ? const MenuTabContent(
+                          key: ValueKey<String>('menu_tab_view'),
+                        )
+                      : _buildHomeTab(isVoucherApplied),
+                ),
+                if (cartCount > 0)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: FloatingCartBar(
+                      itemCount: cartCount,
+                      totalPrice: cartSubtotal,
+                      onViewCart: _onViewCart,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          bottomNavigationBar: HomeBottomNavBar(
+            currentIndex: activeTab,
+            orderBadgeCount: cartCount,
+            onTap: (index) {
+              if (index == 0 || index == 1) {
+                tabController.selectTab(index);
+              } else if (index == 2) {
+                showAiAssistantSheet(context);
+              } else if (index == 3) {
+                Navigator.pushNamed(context, AppRoutes.account);
+              }
+            },
+          ),
+        );
       },
     );
   }

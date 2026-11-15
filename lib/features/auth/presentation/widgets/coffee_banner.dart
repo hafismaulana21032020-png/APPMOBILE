@@ -17,64 +17,72 @@ class CoffeeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final minHeight = height ?? AppDimensions.bannerHeight;
+
     return Container(
       width: double.infinity,
-      height: height ?? AppDimensions.bannerHeight,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
         child: Stack(
-          fit: StackFit.expand,
           children: [
-            Image.asset(
-              AppAssets.coffeeBanner,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                color: AppColors.primaryBrown,
-                child: const Center(
-                  child: Icon(Icons.coffee, size: 50, color: Colors.white),
+            Positioned.fill(
+              child: Image.asset(
+                AppAssets.coffeeBanner,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: AppColors.primaryBrown,
+                  child: const Center(
+                    child: Icon(Icons.coffee, size: 50, color: Colors.white),
+                  ),
                 ),
               ),
             ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.black.withValues(alpha: 0.65),
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.25),
+                      Colors.black.withValues(alpha: 0.65),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            ConstrainedBox(
+              constraints: BoxConstraints(minHeight: minHeight),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        height: 1.2,
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: Colors.white.withValues(alpha: 0.85),
-                      height: 1.2,
-                    ),
-                  ),
-                ],
               ),
             ),
           ],

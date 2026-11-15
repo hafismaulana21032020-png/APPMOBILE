@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cart/domain/services/cart_service.dart';
+import '../../../home/presentation/controllers/home_tab_controller.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
+import '../../../home/presentation/widgets/home_nav_helper.dart';
 import '../../domain/services/user_service.dart';
 import '../widgets/account_banner_card.dart';
 import '../widgets/account_menu_item.dart';
@@ -15,6 +17,17 @@ import '../widgets/transaction_item_tile.dart';
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
 
+  void _showInfoMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.primaryBrown,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -22,6 +35,10 @@ class AccountPage extends StatelessWidget {
       builder: (context, _) {
         final user = UserService.instance;
         final cartCount = CartService.instance.totalItemCount;
+        final trimmedName = user.name.trim();
+        final firstName = trimmedName.isEmpty
+            ? 'PENGGUNA'
+            : trimmedName.split(RegExp(r'\s+')).first.toUpperCase();
 
         return Scaffold(
           backgroundColor: AppColors.backgroundColor,
@@ -34,33 +51,41 @@ class AccountPage extends StatelessWidget {
                   // Header Bar
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'BreakFree',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.darkBrown,
-                              letterSpacing: -0.3,
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'BreakFree',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkBrown,
+                                letterSpacing: -0.3,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Akun Saya',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.secondaryText,
+                            Text(
+                              'Akun Saya',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.secondaryText,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      Icon(
-                        Icons.notifications_none_rounded,
-                        size: 24,
-                        color: AppColors.darkBrown,
+                      IconButton(
+                        onPressed: () => _showInfoMessage(
+                          context,
+                          'Belum ada notifikasi baru saat ini.',
+                        ),
+                        icon: const Icon(
+                          Icons.notifications_none_rounded,
+                          size: 24,
+                          color: AppColors.darkBrown,
+                        ),
                       ),
                     ],
                   ),
@@ -68,7 +93,7 @@ class AccountPage extends StatelessWidget {
 
                   // Banner Card
                   AccountBannerCard(
-                    userName: user.name.split(' ').first.toUpperCase(),
+                    userName: firstName,
                   ),
                   const SizedBox(height: 14),
 
@@ -90,8 +115,14 @@ class AccountPage extends StatelessWidget {
                   AccountQuickActions(
                     onOrderTap: () =>
                         Navigator.pushNamed(context, AppRoutes.cart),
-                    onCashbackTap: null,
-                    onFavoriteTap: null,
+                    onCashbackTap: () => _showInfoMessage(
+                      context,
+                      'Kamu memiliki 1.240 poin BreakFree aktif.',
+                    ),
+                    onFavoriteTap: () => _showInfoMessage(
+                      context,
+                      'Menu favoritmu tersimpan di katalog BreakFree.',
+                    ),
                   ),
                   const SizedBox(height: 14),
 
@@ -100,7 +131,12 @@ class AccountPage extends StatelessWidget {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton.icon(
-                      onPressed: () {},
+                      onPressed: () => _showInfoMessage(
+                        context,
+                        cartCount > 0
+                            ? 'Ada $cartCount item di keranjang siap untuk dipesan.'
+                            : 'Semua pesanan sebelumnya sudah selesai.',
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.darkBrown,
                         shape: RoundedRectangleBorder(
@@ -126,21 +162,32 @@ class AccountPage extends StatelessWidget {
                   // Transaksi terbaru
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        'Transaksi terbaru',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Transaksi terbaru',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                          ),
                         ),
                       ),
-                      Text(
-                        'Riwayat',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.darkBrown,
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _showInfoMessage(
+                          context,
+                          'Menampilkan 3 transaksi terakhir.',
+                        ),
+                        child: const Text(
+                          'Riwayat',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.darkBrown,
+                          ),
                         ),
                       ),
                     ],
@@ -210,6 +257,7 @@ class AccountPage extends StatelessWidget {
                           icon: Icons.logout_rounded,
                           title: 'Keluar akun',
                           onTap: () {
+                            HomeTabController.instance.resetToHome();
                             Navigator.pushNamedAndRemoveUntil(
                               context,
                               AppRoutes.login,
@@ -226,7 +274,10 @@ class AccountPage extends StatelessWidget {
                         AccountMenuItem(
                           icon: Icons.notifications_none_rounded,
                           title: 'Notifikasi',
-                          onTap: () {},
+                          onTap: () => _showInfoMessage(
+                            context,
+                            'Notifikasi promo aktif untuk akunmu.',
+                          ),
                         ),
                         const Divider(
                           height: 1,
@@ -235,7 +286,10 @@ class AccountPage extends StatelessWidget {
                         AccountMenuItem(
                           icon: Icons.settings_outlined,
                           title: 'Pengaturan',
-                          onTap: () {},
+                          onTap: () => _showInfoMessage(
+                            context,
+                            'Pengaturan aplikasi menggunakan konfigurasi default.',
+                          ),
                         ),
                         const Divider(
                           height: 1,
@@ -244,7 +298,10 @@ class AccountPage extends StatelessWidget {
                         AccountMenuItem(
                           icon: Icons.help_outline_rounded,
                           title: 'Bantuan',
-                          onTap: () {},
+                          onTap: () => _showInfoMessage(
+                            context,
+                            'Hubungi barista BreakFree Malang untuk bantuan pesanan.',
+                          ),
                         ),
                       ],
                     ),
@@ -257,13 +314,11 @@ class AccountPage extends StatelessWidget {
           bottomNavigationBar: HomeBottomNavBar(
             currentIndex: 3,
             orderBadgeCount: cartCount,
-            onTap: (index) {
-              if (index == 0) {
-                Navigator.popUntil(context, (route) => route.isFirst);
-              } else if (index == 1) {
-                Navigator.pushNamed(context, AppRoutes.cart);
-              }
-            },
+            onTap: (index) => handleSecondaryBottomNavTap(
+              context,
+              index,
+              currentIndex: 3,
+            ),
           ),
         );
       },

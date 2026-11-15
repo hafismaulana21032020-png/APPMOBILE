@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_formatters.dart';
 import '../../domain/models/cart_item_model.dart';
 import '../../domain/services/cart_service.dart';
 import '../widgets/cart_item_card.dart';
@@ -13,18 +14,28 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
-  final TextEditingController _promoController =
-      TextEditingController(text: 'KODE PROMO: KOPIKAMPUS');
+  late final TextEditingController _promoController;
 
   List<CartItemModel> get _cartItems => CartService.instance.items;
 
   // Promo terpasang (20% diskon)
   bool _isPromoApplied = true;
+  String? _appliedCode;
   final double _discountPercent = 0.20;
 
   // Metode Pembayaran Terpilih
   String _selectedPaymentMethod = 'QRIS';
   final List<String> _paymentMethods = ['QRIS', 'GoPay', 'OVO', 'Dana'];
+
+  @override
+  void initState() {
+    super.initState();
+    final savedCode = CartService.instance.appliedPromoCode;
+    _appliedCode = savedCode ?? 'KOPIKAMPUS';
+    _promoController = TextEditingController(
+      text: 'KODE PROMO: $_appliedCode',
+    );
+  }
 
   @override
   void dispose() {
@@ -38,6 +49,11 @@ class _CartPageState extends State<CartPage> {
 
   int get _discountAmount {
     if (!_isPromoApplied) return 0;
+    if (_appliedCode == 'BREAK20') {
+      if (_subtotal < 30000) return 0;
+      final discount = (_subtotal * _discountPercent).round();
+      return discount > 10000 ? 10000 : discount;
+    }
     return (_subtotal * _discountPercent).round();
   }
 
@@ -46,20 +62,16 @@ class _CartPageState extends State<CartPage> {
     return total > 0 ? total : 0;
   }
 
-  String _formatPrice(int price) {
-    final str = price.toString();
-    if (str.length <= 3) return 'Rp $str';
-    final thousands = str.substring(0, str.length - 3);
-    final rest = str.substring(str.length - 3);
-    return 'Rp $thousands.$rest';
-  }
+  String _formatPrice(int price) => AppFormatters.formatRupiah(price);
 
   void _onIncrement(int index) {
     CartService.instance.increment(index);
   }
 
   void _onDecrement(int index) {
-    if (_cartItems[index].quantity > 1) {
+    if (index < 0 || index >= _cartItems.length) return;
+    final item = _cartItems[index];
+    if (item.quantity > 1) {
       CartService.instance.decrement(index);
     } else {
       // Tampilkan konfirmasi hapus item
@@ -68,7 +80,7 @@ class _CartPageState extends State<CartPage> {
         builder: (ctx) => AlertDialog(
           title: const Text('Hapus Item?'),
           content: Text(
-              'Apakah Anda ingin menghapus ${_cartItems[index].name} dari keranjang?'),
+              'Apakah Anda ingin menghapus ${item.name} dari keranjang?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -77,7 +89,7 @@ class _CartPageState extends State<CartPage> {
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                CartService.instance.removeItem(index);
+                CartService.instance.removeById(item.id);
               },
               child: const Text('Hapus',
                   style: TextStyle(color: Colors.red)),
@@ -89,23 +101,45 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _applyPromo() {
-    final code = _promoController.text.trim().toUpperCase();
-    if (code.contains('KOPIKAMPUS')) {
+    final rawCode = _promoController.text.trim().toUpperCase();
+    final normalizedCode = rawCode
+        .replaceFirst(RegExp(r'^KODE\s*PROMO\s*:\s*'), '')
+        .trim();
+
+    if (normalizedCode == 'KOPIKAMPUS' || normalizedCode == 'BREAK20') {
       setState(() {
         _isPromoApplied = true;
+        _appliedCode = normalizedCode;
       });
+      CartService.instance.applyPromoCode(normalizedCode);
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            normalizedCode == 'BREAK20'
+                ? 'Voucher BREAK20 berhasil diterapkan! (Diskon 20%, maks. Rp 10.000)'
+                : 'Promo KOPIKAMPUS berhasil diterapkan! (Diskon 20%)',
+          ),
+          backgroundColor: const Color(0xFF2E7D32),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else if (normalizedCode.isEmpty) {
+      setState(() {
+        _isPromoApplied = false;
+        _appliedCode = null;
+      });
+      CartService.instance.applyPromoCode(null);
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Promo KOPIKAMPUS berhasil diterapkan! (Diskon 20%)'),
-          backgroundColor: Color(0xFF2E7D32),
+          content: Text('Kode promo dihapus'),
+          backgroundColor: AppColors.primaryBrown,
           duration: Duration(seconds: 2),
         ),
       );
-    } else if (code.isEmpty) {
-      setState(() {
-        _isPromoApplied = false;
-      });
     } else {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Kode promo tidak valid'),
@@ -147,7 +181,7 @@ class _CartPageState extends State<CartPage> {
             onPressed: () {
               CartService.instance.clear();
               Navigator.pop(ctx);
-              Navigator.pop(context); // kembali ke halaman sebelumnya
+              Navigator.maybePop(context); // kembali ke halaman sebelumnya
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.darkBrown,
@@ -199,13 +233,17 @@ class _CartPageState extends State<CartPage> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Text(
-                    'Keranjang Belanja',
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkText,
-                      letterSpacing: -0.3,
+                  const Expanded(
+                    child: Text(
+                      'Keranjang Belanja',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkText,
+                        letterSpacing: -0.3,
+                      ),
                     ),
                   ),
                 ],
@@ -350,17 +388,20 @@ class _CartPageState extends State<CartPage> {
                                     width: 1.0,
                                   ),
                                 ),
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
                                 alignment: Alignment.center,
-                                child: Text(
-                                  method,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.w500,
-                                    color: isSelected
-                                        ? AppColors.darkBrown
-                                        : AppColors.darkBrown,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    method,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.w500,
+                                      color: AppColors.darkBrown,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -398,13 +439,16 @@ class _CartPageState extends State<CartPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Subtotal',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          color: AppColors.secondaryText,
+                      const Expanded(
+                        child: Text(
+                          'Subtotal',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: AppColors.secondaryText,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         _formatPrice(_subtotal),
                         style: const TextStyle(
@@ -422,14 +466,17 @@ class _CartPageState extends State<CartPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Diskon Promo',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF0F9D58),
+                        const Expanded(
+                          child: Text(
+                            'Diskon Promo',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF0F9D58),
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           '-${_formatPrice(_discountAmount)}',
                           style: const TextStyle(
@@ -447,14 +494,17 @@ class _CartPageState extends State<CartPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Total Pembayaran',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
+                      const Expanded(
+                        child: Text(
+                          'Total Pembayaran',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         _formatPrice(_totalPayment),
                         style: const TextStyle(
@@ -481,12 +531,16 @@ class _CartPageState extends State<CartPage> {
                         ),
                         elevation: 0,
                       ),
-                      child: Text(
-                        'Bayar Sekarang (${_formatPrice(_totalPayment)})',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Bayar Sekarang (${_formatPrice(_totalPayment)})',
+                          maxLines: 1,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
