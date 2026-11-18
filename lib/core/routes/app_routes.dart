@@ -14,4 +14,9 @@ class AppRoutes {
   static const String foodMenu = '/food-menu';
   static const String snackMenu = '/snack-menu';
   static const String profile = '/profile';
+  static const String paymentSuccess = '/payment-success';
+  static const String help = '/help';
+  static const String settings = '/settings';
+  static const String notifications = '/notifications';
+  static const String cashbackPoints = '/cashback-points';
 }

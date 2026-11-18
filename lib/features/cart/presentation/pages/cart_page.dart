@@ -4,6 +4,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../domain/models/cart_item_model.dart';
 import '../../domain/services/cart_service.dart';
+import '../../../../core/routes/app_routes.dart';
+import '../../../account/domain/services/user_service.dart';
 import '../widgets/cart_item_card.dart';
 
 class CartPage extends StatefulWidget {
@@ -151,48 +153,26 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _onCheckout() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Pembayaran Berhasil!',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.darkText,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Metode: $_selectedPaymentMethod'),
-            const SizedBox(height: 6),
-            Text('Total: ${_formatPrice(_totalPayment)}'),
-            const SizedBox(height: 12),
-            const Text(
-              'Pesanan Anda sedang dipersiapkan oleh barista. Silakan cek halaman Akun untuk melacak pesanan.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              CartService.instance.clear();
-              Navigator.pop(ctx);
-              Navigator.maybePop(context); // kembali ke halaman sebelumnya
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.darkBrown,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text('Selesai', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    final paymentMethod = _selectedPaymentMethod;
+    final total = _totalPayment;
+
+    // Setiap pembelian menggunakan aplikasi mendapatkan cashback poin (100 poin = Rp 1.000)
+    final earnedPoints = (total >= 40000 ? 100 : 50);
+    UserService.instance.addPoints(earnedPoints);
+
+    // Bersihkan keranjang
+    CartService.instance.clear();
+
+    // Navigate ke halaman pembayaran berhasil
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.paymentSuccess,
+      (route) => false,
+      arguments: {
+        'paymentMethod': paymentMethod,
+        'totalPayment': total,
+        'earnedPoints': earnedPoints,
+      },
     );
   }
 

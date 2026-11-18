@@ -317,11 +317,11 @@ class _HomePageState extends State<HomePage> {
                         );
                     final offsetBegin = movingForward
                         ? (isIncoming
-                            ? const Offset(0.08, 0)
-                            : const Offset(-0.08, 0))
+                            ? const Offset(0.25, 0)
+                            : const Offset(-0.25, 0))
                         : (isIncoming
-                            ? const Offset(-0.08, 0)
-                            : const Offset(0.08, 0));
+                            ? const Offset(-0.25, 0)
+                            : const Offset(0.25, 0));
                     final slide = Tween<Offset>(
                       begin: offsetBegin,
                       end: Offset.zero,

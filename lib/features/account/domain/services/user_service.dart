@@ -9,12 +9,28 @@ class UserService extends ChangeNotifier {
   String _phone = '0812 •••• 7890';
   String _birthDate = '18 Mei 2000';
   final String _memberBadge = 'Member Gold';
+  int _points = 1240;
 
   String get name => _name;
   String get email => _email;
   String get phone => _phone;
   String get birthDate => _birthDate;
   String get memberBadge => _memberBadge;
+  int get points => _points;
+
+  void addPoints(int pointsToAdd) {
+    _points += pointsToAdd;
+    notifyListeners();
+  }
+
+  bool deductPoints(int pointsToDeduct) {
+    if (_points >= pointsToDeduct) {
+      _points -= pointsToDeduct;
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
 
   String get initials {
     final parts = _name.trim().split(RegExp(r'\s+'));

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
@@ -11,7 +12,75 @@ import '../../features/home/presentation/pages/non_coffee_menu_page.dart';
 import '../../features/home/presentation/pages/food_menu_page.dart';
 import '../../features/home/presentation/pages/snack_menu_page.dart';
 import '../../features/account/presentation/pages/profile_page.dart';
+import '../../features/cart/presentation/pages/payment_success_page.dart';
+import '../../features/account/presentation/pages/help_page.dart';
+import '../../features/account/presentation/pages/settings_page.dart';
+import '../../features/account/presentation/pages/notifications_page.dart';
+import '../../features/account/presentation/pages/cashback_points_page.dart';
 import 'app_routes.dart';
+
+/// Custom PageRouteBuilder dengan transisi slide halus (smooth slide transition)
+class SmoothSlidePageRoute<T> extends PageRouteBuilder<T> {
+  final Widget page;
+
+  SmoothSlidePageRoute({
+    required this.page,
+    super.settings,
+    Duration duration = const Duration(milliseconds: 320),
+    Duration reverseDuration = const Duration(milliseconds: 280),
+  }) : super(
+          pageBuilder: (context, animation, secondaryAnimation) => page,
+          transitionDuration: duration,
+          reverseTransitionDuration: reverseDuration,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final curvedAnimation = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            );
+
+            // Slide masuk dari kanan secara halus
+            final slideIn = Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(curvedAnimation);
+
+            // Efek parallax halus untuk halaman sebelumnya
+            final secondarySlideOut = Tween<Offset>(
+              begin: Offset.zero,
+              end: const Offset(-0.25, 0.0),
+            ).animate(
+              CurvedAnimation(
+                parent: secondaryAnimation,
+                curve: Curves.easeOutCubic,
+                reverseCurve: Curves.easeInCubic,
+              ),
+            );
+
+            // Transisi fade lembut bersamaan dengan slide
+            final fadeIn = Tween<double>(
+              begin: 0.1,
+              end: 1.0,
+            ).animate(
+              CurvedAnimation(
+                parent: animation,
+                curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+              ),
+            );
+
+            return SlideTransition(
+              position: secondarySlideOut,
+              child: SlideTransition(
+                position: slideIn,
+                child: FadeTransition(
+                  opacity: fadeIn,
+                  child: child,
+                ),
+              ),
+            );
+          },
+        );
+}
 
 class AppRouter {
   AppRouter._();
@@ -20,86 +89,93 @@ class AppRouter {
     switch (settings.name) {
       case AppRoutes.initial:
       case AppRoutes.login:
-        return MaterialPageRoute(
-          builder: (_) => const LoginPage(),
+        return SmoothSlidePageRoute(
+          page: const LoginPage(),
           settings: settings,
         );
       case AppRoutes.register:
-        return MaterialPageRoute(
-          builder: (_) => const RegisterPage(),
+        return SmoothSlidePageRoute(
+          page: const RegisterPage(),
           settings: settings,
         );
       case AppRoutes.forgotPassword:
-        return MaterialPageRoute(
-          builder: (_) => const ForgotPasswordPage(),
+        return SmoothSlidePageRoute(
+          page: const ForgotPasswordPage(),
           settings: settings,
         );
       case AppRoutes.home:
-        return MaterialPageRoute(
-          builder: (_) => const HomePage(),
+        return SmoothSlidePageRoute(
+          page: const HomePage(),
           settings: settings,
         );
       case AppRoutes.menu:
-        return PageRouteBuilder<void>(
+        return SmoothSlidePageRoute(
+          page: const MenuPage(),
           settings: settings,
-          transitionDuration: const Duration(milliseconds: 340),
-          reverseTransitionDuration: const Duration(milliseconds: 280),
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const MenuPage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            );
-            final slide = Tween<Offset>(
-              begin: const Offset(0.06, 0),
-              end: Offset.zero,
-            ).animate(curved);
-            return FadeTransition(
-              opacity: curved,
-              child: SlideTransition(position: slide, child: child),
-            );
-          },
         );
       case AppRoutes.coffeeMenu:
-        return MaterialPageRoute(
-          builder: (_) => const CoffeeMenuPage(),
+        return SmoothSlidePageRoute(
+          page: const CoffeeMenuPage(),
           settings: settings,
         );
       case AppRoutes.account:
-        return MaterialPageRoute(
-          builder: (_) => const AccountPage(),
+        return SmoothSlidePageRoute(
+          page: const AccountPage(),
           settings: settings,
         );
       case AppRoutes.cart:
-        return MaterialPageRoute(
-          builder: (_) => const CartPage(),
+        return SmoothSlidePageRoute(
+          page: const CartPage(),
           settings: settings,
         );
       case AppRoutes.nonCoffee:
-        return MaterialPageRoute(
-          builder: (_) => const NonCoffeeMenuPage(),
+        return SmoothSlidePageRoute(
+          page: const NonCoffeeMenuPage(),
           settings: settings,
         );
       case AppRoutes.foodMenu:
-        return MaterialPageRoute(
-          builder: (_) => const FoodMenuPage(),
+        return SmoothSlidePageRoute(
+          page: const FoodMenuPage(),
           settings: settings,
         );
       case AppRoutes.snackMenu:
-        return MaterialPageRoute(
-          builder: (_) => const SnackMenuPage(),
+        return SmoothSlidePageRoute(
+          page: const SnackMenuPage(),
           settings: settings,
         );
       case AppRoutes.profile:
-        return MaterialPageRoute(
-          builder: (_) => const ProfilePage(),
+        return SmoothSlidePageRoute(
+          page: const ProfilePage(),
+          settings: settings,
+        );
+      case AppRoutes.paymentSuccess:
+        return SmoothSlidePageRoute(
+          page: const PaymentSuccessPage(),
+          settings: settings,
+        );
+      case AppRoutes.help:
+        return SmoothSlidePageRoute(
+          page: const HelpPage(),
+          settings: settings,
+        );
+      case AppRoutes.settings:
+        return SmoothSlidePageRoute(
+          page: const SettingsPage(),
+          settings: settings,
+        );
+      case AppRoutes.notifications:
+        return SmoothSlidePageRoute(
+          page: const NotificationsPage(),
+          settings: settings,
+        );
+      case AppRoutes.cashbackPoints:
+        return SmoothSlidePageRoute(
+          page: const CashbackPointsPage(),
           settings: settings,
         );
       default:
-        return MaterialPageRoute(
-          builder: (_) => Scaffold(
+        return SmoothSlidePageRoute(
+          page: Scaffold(
             body: Center(
               child: Text('Halaman tidak ditemukan: ${settings.name}'),
             ),
