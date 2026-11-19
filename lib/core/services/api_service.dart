@@ -1,22 +1,34 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 /// Service API Client untuk menghubungkan Flutter APPMOBILE
 /// langsung ke Backend Express terpadu (breakfree-backend).
+/// Mendukung semua platform: Web (Chrome), Android Emulator/Fisik, dan Windows Desktop.
 class ApiService {
   ApiService._();
   static final ApiService instance = ApiService._();
 
+  static String? customBaseUrl;
+
   /// URL Base API Backend Express (Port default: 5000)
-  /// - Android Emulator: 10.0.2.2:5000
-  /// - Web / Windows / Mac: localhost:5000
-  /// - Device Fisik: Ubah ke IP komputer lokal (misal: 192.168.1.X:5000)
+  /// - Web / Windows Desktop: http://localhost:5000/api/v1/mobile
+  /// - Android Emulator: http://10.0.2.2:5000/api/v1/mobile
+  /// - Android Device Fisik / Jaringan LAN: http://192.168.68.104:5000/api/v1/mobile
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:5000/api/v1/mobile';
-    if (Platform.isAndroid) return 'http://10.0.2.2:5000/api/v1/mobile';
+    if (customBaseUrl != null && customBaseUrl!.isNotEmpty) {
+      return customBaseUrl!;
+    }
+    if (kIsWeb) {
+      return 'http://localhost:5000/api/v1/mobile';
+    }
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:5000/api/v1/mobile';
+    }
     return 'http://localhost:5000/api/v1/mobile';
   }
+
+  static const String androidFallbackUrl = 'http://192.168.68.104:5000/api/v1/mobile';
 
   String? _authToken;
   String? get authToken => _authToken;
@@ -82,11 +94,10 @@ class ApiService {
     String? phone,
     String? birthDate,
   }) async {
-    return _put('/profile/me', {
-      'name': name,
-      if (phone != null) 'phone': phone,
-      if (birthDate != null) 'birthDate': birthDate,
-    });
+    final payload = <String, dynamic>{'name': name};
+    if (phone != null) payload['phone'] = phone;
+    if (birthDate != null) payload['birthDate'] = birthDate;
+    return _put('/profile/me', payload);
   }
 
   Future<Map<String, dynamic>> getPointsHistory() async {
@@ -140,8 +151,11 @@ class ApiService {
     return _post('/orders/checkout', orderPayload);
   }
 
-  Future<Map<String, dynamic>> getActiveOrder() async {
-    return _get('/orders/active');
+  Future<Map<String, dynamic>> getActiveOrder([String? orderId]) async {
+    final queryStr = (orderId != null && orderId.isNotEmpty)
+        ? '?orderId=${Uri.encodeComponent(orderId)}'
+        : '';
+    return _get('/orders/active$queryStr');
   }
 
   Future<Map<String, dynamic>> getOrderHistory() async {
@@ -164,23 +178,43 @@ class ApiService {
   }
 
   // ===========================================================================
-  // HELPER HTTP REQUESTS (Standard Dart HttpClient)
+  // HELPER HTTP REQUESTS (Cross-platform package:http)
   // ===========================================================================
+
+  Map<String, String> _buildHeaders() {
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Accept': 'application/json',
+    };
+    if (_authToken != null && _authToken!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $_authToken';
+    }
+    return headers;
+  }
 
   Future<Map<String, dynamic>> _get(String path) async {
     try {
       final uri = Uri.parse('$baseUrl$path');
-      final client = HttpClient();
-      final request = await client.getUrl(uri);
-
-      _attachHeaders(request);
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      client.close();
-
+      final response = await http
+          .get(uri, headers: _buildHeaders())
+          .timeout(const Duration(seconds: 6));
+      final body = utf8.decode(response.bodyBytes);
       return jsonDecode(body) as Map<String, dynamic>;
     } catch (e) {
       debugPrint('ApiService GET Error [$path]: $e');
+      if (defaultTargetPlatform == TargetPlatform.android &&
+          customBaseUrl == null &&
+          baseUrl.contains('10.0.2.2')) {
+        try {
+          final fallbackUri = Uri.parse('$androidFallbackUrl$path');
+          final response = await http
+              .get(fallbackUri, headers: _buildHeaders())
+              .timeout(const Duration(seconds: 6));
+          customBaseUrl = androidFallbackUrl;
+          final body = utf8.decode(response.bodyBytes);
+          return jsonDecode(body) as Map<String, dynamic>;
+        } catch (_) {}
+      }
       return {'success': false, 'message': 'Gagal terhubung ke backend: $e'};
     }
   }
@@ -188,20 +222,26 @@ class ApiService {
   Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> data) async {
     try {
       final uri = Uri.parse('$baseUrl$path');
-      final client = HttpClient();
-      final request = await client.postUrl(uri);
-
-      _attachHeaders(request);
-      request.headers.set('content-type', 'application/json; charset=UTF-8');
-      request.write(jsonEncode(data));
-
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      client.close();
-
+      final response = await http
+          .post(uri, headers: _buildHeaders(), body: jsonEncode(data))
+          .timeout(const Duration(seconds: 8));
+      final body = utf8.decode(response.bodyBytes);
       return jsonDecode(body) as Map<String, dynamic>;
     } catch (e) {
       debugPrint('ApiService POST Error [$path]: $e');
+      if (defaultTargetPlatform == TargetPlatform.android &&
+          customBaseUrl == null &&
+          baseUrl.contains('10.0.2.2')) {
+        try {
+          final fallbackUri = Uri.parse('$androidFallbackUrl$path');
+          final response = await http
+              .post(fallbackUri, headers: _buildHeaders(), body: jsonEncode(data))
+              .timeout(const Duration(seconds: 8));
+          customBaseUrl = androidFallbackUrl;
+          final body = utf8.decode(response.bodyBytes);
+          return jsonDecode(body) as Map<String, dynamic>;
+        } catch (_) {}
+      }
       return {'success': false, 'message': 'Gagal terhubung ke backend: $e'};
     }
   }
@@ -209,28 +249,27 @@ class ApiService {
   Future<Map<String, dynamic>> _put(String path, Map<String, dynamic> data) async {
     try {
       final uri = Uri.parse('$baseUrl$path');
-      final client = HttpClient();
-      final request = await client.putUrl(uri);
-
-      _attachHeaders(request);
-      request.headers.set('content-type', 'application/json; charset=UTF-8');
-      request.write(jsonEncode(data));
-
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      client.close();
-
+      final response = await http
+          .put(uri, headers: _buildHeaders(), body: jsonEncode(data))
+          .timeout(const Duration(seconds: 8));
+      final body = utf8.decode(response.bodyBytes);
       return jsonDecode(body) as Map<String, dynamic>;
     } catch (e) {
       debugPrint('ApiService PUT Error [$path]: $e');
+      if (defaultTargetPlatform == TargetPlatform.android &&
+          customBaseUrl == null &&
+          baseUrl.contains('10.0.2.2')) {
+        try {
+          final fallbackUri = Uri.parse('$androidFallbackUrl$path');
+          final response = await http
+              .put(fallbackUri, headers: _buildHeaders(), body: jsonEncode(data))
+              .timeout(const Duration(seconds: 8));
+          customBaseUrl = androidFallbackUrl;
+          final body = utf8.decode(response.bodyBytes);
+          return jsonDecode(body) as Map<String, dynamic>;
+        } catch (_) {}
+      }
       return {'success': false, 'message': 'Gagal terhubung ke backend: $e'};
     }
-  }
-
-  void _attachHeaders(HttpClientRequest request) {
-    if (_authToken != null && _authToken!.isNotEmpty) {
-      request.headers.set('authorization', 'Bearer $_authToken');
-    }
-    request.headers.set('accept', 'application/json');
   }
 }

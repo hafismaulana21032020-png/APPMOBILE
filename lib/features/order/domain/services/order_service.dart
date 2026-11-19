@@ -136,20 +136,22 @@ class OrderService extends ChangeNotifier {
   }
 
   /// Creates a new live order when user checks out from the cart.
-  OrderModel createOrderFromCart({
+  Future<OrderModel> createOrderFromCart({
     required List<CartItemModel> items,
     required String paymentMethod,
     required int totalPrice,
     String? promoCode,
     String pickupType = 'Dine-in (Minum di Kafe)',
-  }) {
+  }) async {
     final now = DateTime.now();
     final randomNum = (Random().nextInt(9000) + 1000).toString().padLeft(4, '0');
     final queueCode =
         '${['A', 'B', 'C'][Random().nextInt(3)]}-${(Random().nextInt(40) + 1).toString().padLeft(2, '0')}';
 
+    final orderId = '#BF-$randomNum';
+
     final newOrder = OrderModel(
-      id: '#BF-$randomNum',
+      id: orderId,
       queueNumber: queueCode,
       counterName: 'Counter Bar 01',
       pickupType: pickupType,
@@ -171,31 +173,35 @@ class OrderService extends ChangeNotifier {
     _activeOrder = newOrder;
     notifyListeners();
 
-    // Kirim pesanan ke backend terpadu secara asinkron
+    // Kirim pesanan ke backend terpadu secara langsung
     // Pesanan ini otomatis masuk ke antrean dapur Web POS kasir!
-    ApiService.instance.checkoutOrder({
-      'orderId': newOrder.id,
-      'queueNumber': newOrder.queueNumber,
-      'customerName': UserService.instance.name,
-      'items': items.map((it) => {
-        'id': it.id,
-        'name': it.name,
-        'options': it.options,
-        'price': it.price,
-        'quantity': it.quantity,
-        'image': it.image,
-      }).toList(),
-      'pickupType': pickupType,
-      'paymentMethod': paymentMethod,
-      'promoCode': promoCode,
-      'totalPrice': totalPrice,
-    }).then((res) {
+    try {
+      final res = await ApiService.instance.checkoutOrder({
+        'orderId': newOrder.id,
+        'queueNumber': newOrder.queueNumber,
+        'customerName': UserService.instance.name,
+        'items': items.map((it) => {
+          'id': it.id,
+          'name': it.name,
+          'options': it.options,
+          'price': it.price,
+          'quantity': it.quantity,
+          'image': it.image,
+        }).toList(),
+        'pickupType': pickupType,
+        'paymentMethod': paymentMethod,
+        'promoCode': promoCode,
+        'totalPrice': totalPrice,
+      });
+
       if (res['success'] == true) {
-        debugPrint('Pesanan berhasil disinkronkan ke Web POS & Dapur!');
+        debugPrint('Pesanan ${newOrder.id} (${newOrder.queueNumber}) berhasil masuk ke Live Tracking Web POS & Dapur!');
+      } else {
+        debugPrint('Checkout backend status: ${res['message']}');
       }
-    }).catchError((e) {
+    } catch (e) {
       debugPrint('Checkout backend sync error: $e');
-    });
+    }
 
     return newOrder;
   }
@@ -204,7 +210,7 @@ class OrderService extends ChangeNotifier {
   /// yang diupdate oleh kasir melalui Web POS.
   Future<void> syncActiveOrderFromBackend() async {
     try {
-      final res = await ApiService.instance.getActiveOrder();
+      final res = await ApiService.instance.getActiveOrder(_activeOrder?.id);
       if (res['success'] == true && res['activeOrder'] != null) {
         final data = res['activeOrder'];
         final rawStatus = data['status']?.toString().toLowerCase().trim() ?? 'diterima';

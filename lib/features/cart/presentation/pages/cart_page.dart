@@ -153,14 +153,14 @@ class _CartPageState extends State<CartPage> {
     }
   }
 
-  void _onCheckout() {
+  void _onCheckout() async {
     final paymentMethod = _selectedPaymentMethod;
     final total = _totalPayment;
     final promoCode = CartService.instance.appliedPromoCode;
     final cartItems = List<CartItemModel>.from(CartService.instance.items);
 
-    // Buat live order di OrderService
-    final newOrder = OrderService.instance.createOrderFromCart(
+    // Buat live order di OrderService dan sinkronkan ke backend Web POS
+    final newOrder = await OrderService.instance.createOrderFromCart(
       items: cartItems,
       paymentMethod: paymentMethod,
       totalPrice: total,
@@ -173,6 +173,8 @@ class _CartPageState extends State<CartPage> {
 
     // Bersihkan keranjang
     CartService.instance.clear();
+
+    if (!mounted) return;
 
     // Navigate ke halaman pembayaran berhasil
     Navigator.pushNamedAndRemoveUntil(
