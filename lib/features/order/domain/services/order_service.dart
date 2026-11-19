@@ -10,9 +10,9 @@ import '../models/order_model.dart';
 /// Service managing Live Order Tracking and Order History for BreakFree.
 class OrderService extends ChangeNotifier {
   OrderService._() {
-    _initDefaultHistory();
-    // Otomatis tarik pesanan aktif terbaru dari database MySQL saat app dibuka
+    // Tarik status pesanan aktif & riwayat nyata langsung dari database MySQL backend
     syncActiveOrderFromBackend();
+    loadHistoryFromBackend();
   }
 
   static final OrderService instance = OrderService._();
@@ -22,108 +22,6 @@ class OrderService extends ChangeNotifier {
 
   OrderModel? get activeOrder => _activeOrder;
   List<OrderModel> get orderHistory => List.unmodifiable(_orderHistory);
-
-  void _initDefaultHistory() {
-    _orderHistory.addAll([
-      OrderModel(
-        id: '#BF-2849',
-        queueNumber: 'A-14',
-        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-        status: OrderStatus.selesai,
-        totalPrice: 42000,
-        paymentMethod: 'QRIS',
-        promoCode: 'BREAK20',
-        items: [
-          CartItemModel(
-            id: 'demo-item-1',
-            name: 'Breakfree Aren Latte',
-            options: 'Ice Coffee • Less Sugar • Oatmilk',
-            price: 25000,
-            quantity: 1,
-            image: AppAssets.breakfreeArenLatte,
-          ),
-          CartItemModel(
-            id: 'demo-item-2',
-            name: 'French Fries',
-            options: 'Snack • Saus Sambal & Mayo',
-            price: 17000,
-            quantity: 1,
-            image: AppAssets.coffeeBanner,
-          ),
-        ],
-      ),
-      OrderModel(
-        id: '#BF-0302',
-        queueNumber: 'B-08',
-        createdAt: DateTime(2025, 6, 28, 19, 41),
-        status: OrderStatus.selesai,
-        totalPrice: 45000,
-        paymentMethod: 'QRIS',
-        items: [
-          CartItemModel(
-            id: 'h-1',
-            name: 'Breakfree Aren Latte',
-            options: 'Ice Coffee • Regular',
-            price: 18000,
-            quantity: 1,
-            image: AppAssets.breakfreeArenLatte,
-          ),
-          CartItemModel(
-            id: 'h-2',
-            name: 'Croissant Almond',
-            options: 'Pastry • Original Butter',
-            price: 27000,
-            quantity: 1,
-            image: AppAssets.coffeeBanner,
-          ),
-        ],
-      ),
-      OrderModel(
-        id: '#BF-0297',
-        queueNumber: 'A-22',
-        createdAt: DateTime(2025, 6, 21, 12, 36),
-        status: OrderStatus.selesai,
-        totalPrice: 62000,
-        paymentMethod: 'E-Wallet',
-        items: [
-          CartItemModel(
-            id: 'h-3',
-            name: '2 Ice Kopi Susu',
-            options: 'Bundle Berdua',
-            price: 28000,
-            quantity: 1,
-            image: AppAssets.breakfreeArenLatte,
-          ),
-          CartItemModel(
-            id: 'h-4',
-            name: 'Indomie Nyemek',
-            options: 'Makanan • Telur Setengah Matang',
-            price: 16000,
-            quantity: 2,
-            image: AppAssets.nasiGorengTelur,
-          ),
-        ],
-      ),
-      OrderModel(
-        id: '#BF-0259',
-        queueNumber: 'A-05',
-        createdAt: DateTime(2025, 5, 15, 11, 6),
-        status: OrderStatus.selesai,
-        totalPrice: 18000,
-        paymentMethod: 'Tunai',
-        items: [
-          CartItemModel(
-            id: 'h-5',
-            name: 'Signature Matcha',
-            options: 'Non-Kopi • Less Sugar',
-            price: 18000,
-            quantity: 1,
-            image: AppAssets.cubeTiramisu,
-          ),
-        ],
-      ),
-    ]);
-  }
 
   /// Creates a new live order when user checks out from the cart.
   Future<OrderModel> createOrderFromCart({
@@ -200,12 +98,8 @@ class OrderService extends ChangeNotifier {
   /// yang diupdate oleh kasir melalui Web POS.
   Future<void> syncActiveOrderFromBackend() async {
     try {
-      // Jika _activeOrder sudah ada dan bukan demo selesai, kita sinkronkan dengan ID tersebut.
-      // Jika _activeOrder null atau statusnya selesai, cari order aktif terbaru yang sedang diproses di database
       String? orderIdToQuery;
-      if (_activeOrder != null &&
-          !_activeOrder!.id.contains('2849') &&
-          _activeOrder!.status != OrderStatus.selesai) {
+      if (_activeOrder != null && _activeOrder!.status != OrderStatus.selesai) {
         orderIdToQuery = _activeOrder!.id;
       }
 
@@ -264,7 +158,7 @@ class OrderService extends ChangeNotifier {
           estimatedMinutes: (data['estimatedMinutes'] as num?)?.toInt() ?? 5,
           baristaName: data['baristaName']?.toString() ?? 'Barista Reza',
           baristaNote: data['baristaNote']?.toString() ?? 'Barista sedang meracik pesanan.',
-          totalPrice: (data['totalPrice'] as num?)?.toInt() ?? (_activeOrder?.totalPrice ?? 42000),
+          totalPrice: (data['totalPrice'] as num?)?.toInt() ?? (_activeOrder?.totalPrice ?? 0),
           paymentMethod: data['paymentMethod']?.toString() ?? 'QRIS',
           promoCode: data['promoCode']?.toString(),
           statusTimes: updatedTimes,
@@ -273,87 +167,66 @@ class OrderService extends ChangeNotifier {
 
         _activeOrder = updatedOrder;
         notifyListeners();
+      } else if (res['success'] == true && res['hasActiveOrder'] == false) {
+        // Jika tidak ada pesanan aktif di database:
+        if (_activeOrder != null) {
+          if (_activeOrder!.status == OrderStatus.selesai &&
+              !_orderHistory.any((o) => o.id == _activeOrder!.id)) {
+            _orderHistory.insert(0, _activeOrder!);
+          }
+          _activeOrder = null;
+          notifyListeners();
+        }
       }
     } catch (e) {
       debugPrint('OrderService syncActiveOrderFromBackend error: $e');
     }
   }
 
-  /// Manually advances the status of the active order (for live demo / test).
-  void advanceStatus() {
-    final current = _activeOrder;
-    if (current == null) {
-      syncActiveOrderFromBackend();
-      return;
+  /// Memuat riwayat pesanan riil dari backend MySQL
+  Future<void> loadHistoryFromBackend() async {
+    try {
+      final res = await ApiService.instance.getOrderHistory();
+      if (res['success'] == true && res['orders'] != null) {
+        final list = res['orders'] as List;
+        _orderHistory.clear();
+        for (final o in list) {
+          List<CartItemModel> items = [];
+          if (o['items'] != null && o['items'] is List) {
+            items = (o['items'] as List).map((it) => CartItemModel(
+              id: it['id']?.toString() ?? 'item',
+              name: it['name']?.toString() ?? 'Kopi BreakFree',
+              options: it['options']?.toString() ?? 'Regular',
+              price: (it['price'] as num?)?.toInt() ?? 0,
+              quantity: (it['quantity'] as num?)?.toInt() ?? 1,
+              image: AppAssets.breakfreeArenLatte,
+            )).toList();
+          }
+
+          _orderHistory.add(OrderModel(
+            id: o['id']?.toString() ?? '#BF-0000',
+            queueNumber: o['queueNumber']?.toString() ?? '-',
+            counterName: o['counterName']?.toString() ?? 'Counter Bar 01',
+            pickupType: o['pickupType']?.toString() ?? 'Dine-in (Minum di Kafe)',
+            createdAt: o['createdAt'] != null
+                ? DateTime.tryParse(o['createdAt'].toString()) ?? DateTime.now()
+                : DateTime.now(),
+            status: OrderStatus.selesai,
+            totalPrice: (o['totalPrice'] as num?)?.toInt() ?? 0,
+            paymentMethod: o['paymentMethod']?.toString() ?? 'QRIS',
+            items: items,
+          ));
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('loadHistoryFromBackend error: $e');
     }
-
-    final now = DateTime.now();
-    final updatedTimes = Map<OrderStatus, DateTime>.from(current.statusTimes);
-
-    switch (current.status) {
-      case OrderStatus.diterima:
-        updatedTimes[OrderStatus.diproses] = now;
-        _activeOrder = current.copyWith(
-          status: OrderStatus.diproses,
-          estimatedMinutes: 5,
-          baristaNote:
-              'Barista sedang meracik minuman & memasak hidanganmu di bar.',
-          statusTimes: updatedTimes,
-        );
-        break;
-
-      case OrderStatus.diproses:
-        updatedTimes[OrderStatus.siapDiambil] = now;
-        _activeOrder = current.copyWith(
-          status: OrderStatus.siapDiambil,
-          estimatedMinutes: 0,
-          baristaNote:
-              'Pesananmu sudah siap di ${current.counterName}! Tunjukkan nomor ${current.id} atau antrean ${current.queueNumber}.',
-          statusTimes: updatedTimes,
-        );
-        break;
-
-      case OrderStatus.siapDiambil:
-        updatedTimes[OrderStatus.selesai] = now;
-        final finished = current.copyWith(
-          status: OrderStatus.selesai,
-          estimatedMinutes: 0,
-          baristaNote:
-              'Pesanan telah diambil oleh pelanggan. Selamat menikmati jeda santaimu di BreakFree!',
-          statusTimes: updatedTimes,
-        );
-        _orderHistory.insert(0, finished);
-        _activeOrder = finished;
-        break;
-
-      case OrderStatus.selesai:
-        syncActiveOrderFromBackend();
-        break;
-    }
-
-    notifyListeners();
   }
 
-  /// Resets the active order back to initial 'diterima' state.
-  void resetToNewOrder() {
-    final now = DateTime.now();
-    final order = _activeOrder ??
-        OrderModel(
-          id: '#BF-2849',
-          queueNumber: 'A-14',
-          createdAt: now,
-          status: OrderStatus.diterima,
-          items: const [],
-          totalPrice: 25000,
-          paymentMethod: 'QRIS',
-        );
-
-    _activeOrder = order.copyWith(
-      status: OrderStatus.diterima,
-      estimatedMinutes: 10,
-      baristaNote: 'Pesanan baru saja dikonfirmasi & masuk ke dapur barista.',
-      statusTimes: {OrderStatus.diterima: now},
-    );
+  /// Reset / hapus active order lokal
+  void clearActiveOrder() {
+    _activeOrder = null;
     notifyListeners();
   }
 }

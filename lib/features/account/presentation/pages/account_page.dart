@@ -9,6 +9,7 @@ import '../../../home/presentation/controllers/home_tab_controller.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import '../../../home/presentation/widgets/home_nav_helper.dart';
 import '../../domain/services/user_service.dart';
+import '../../../order/domain/services/order_service.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
@@ -405,38 +406,68 @@ class AccountPage extends StatelessWidget {
 
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 18),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: AppColors.inputBorderColor, width: 1),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: const Column(
-                        children: [
-                          _TransactionTile(
-                            orderId: '#BF-0302',
-                            dateTime: '28 Jun · 19:41 · 3 Item · 2025',
-                            amount: 45000,
-                            status: 'Selesai',
+                    child: AnimatedBuilder(
+                      animation: OrderService.instance,
+                      builder: (context, _) {
+                        final history = OrderService.instance.orderHistory;
+                        if (history.isEmpty) {
+                          return Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: AppColors.inputBorderColor, width: 1),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 24),
+                            child: const Center(
+                              child: Text(
+                                'Belum ada transaksi',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.secondaryText,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                        final displayItems = history.take(3).toList();
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: AppColors.inputBorderColor, width: 1),
                           ),
-                          Divider(height: 1, color: AppColors.inputBorderColor),
-                          _TransactionTile(
-                            orderId: '#BF-0297',
-                            dateTime: '21 Jun · 12:36 · 1 Item · 16 May',
-                            amount: 62000,
-                            status: 'Selesai',
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Column(
+                            children: List.generate(displayItems.length, (idx) {
+                              final item = displayItems[idx];
+                              final m = item.createdAt.month;
+                              final mName = (m >= 1 && m <= 12) ? months[m - 1] : '';
+                              final dateStr =
+                                  '${item.createdAt.day} $mName · ${item.createdAt.hour.toString().padLeft(2, '0')}:${item.createdAt.minute.toString().padLeft(2, '0')} · ${item.items.length} Item';
+                              return Column(
+                                children: [
+                                  if (idx > 0)
+                                    const Divider(
+                                        height: 1,
+                                        color: AppColors.inputBorderColor),
+                                  _TransactionTile(
+                                    orderId: item.id,
+                                    dateTime: dateStr,
+                                    amount: item.totalPrice,
+                                    status: item.status.title,
+                                  ),
+                                ],
+                              );
+                            }),
                           ),
-                          Divider(height: 1, color: AppColors.inputBorderColor),
-                          _TransactionTile(
-                            orderId: '#BF-0259',
-                            dateTime: '15 May · 11:06 · 1 Item · 2025',
-                            amount: 18000,
-                            status: 'Selesai',
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
 

@@ -21,8 +21,8 @@ class _CartPageState extends State<CartPage> {
 
   List<CartItemModel> get _cartItems => CartService.instance.items;
 
-  // Promo terpasang (20% diskon)
-  bool _isPromoApplied = true;
+  // Promo terpasang
+  bool _isPromoApplied = false;
   String? _appliedCode;
   final double _discountPercent = 0.20;
 
@@ -34,9 +34,10 @@ class _CartPageState extends State<CartPage> {
   void initState() {
     super.initState();
     final savedCode = CartService.instance.appliedPromoCode;
-    _appliedCode = savedCode ?? 'KOPIKAMPUS';
+    _appliedCode = savedCode;
+    _isPromoApplied = savedCode != null && savedCode.isNotEmpty;
     _promoController = TextEditingController(
-      text: 'KODE PROMO: $_appliedCode',
+      text: savedCode != null ? 'KODE PROMO: $savedCode' : '',
     );
   }
 

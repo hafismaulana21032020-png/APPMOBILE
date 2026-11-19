@@ -345,18 +345,6 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () => OrderService.instance.resetToNewOrder(),
-                child: const Text(
-                  'Buat Pesanan Simulasi',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.primaryBrown,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -459,7 +447,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       itemCount: history.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final order = history[index];
         final formattedDate =

@@ -7,25 +7,8 @@ class CartService extends ChangeNotifier {
   CartService._();
   static final CartService instance = CartService._();
 
-  // Daftar item keranjang (default awal sesuai desain)
-  final List<CartItemModel> _items = [
-    CartItemModel(
-      id: 'default-1',
-      name: 'Kopi Susu Gula Aren',
-      options: 'Regular, Normal Sugar, Oatmilk',
-      price: 25000,
-      quantity: 1,
-      image: AppAssets.breakfreeArenLatte,
-    ),
-    CartItemModel(
-      id: 'default-2',
-      name: 'Croissant Almond',
-      options: 'Original Butter pastry',
-      price: 26000,
-      quantity: 1,
-      image: AppAssets.coffeeBanner,
-    ),
-  ];
+  // Daftar item keranjang (kosong saat pertama kali dibuka)
+  final List<CartItemModel> _items = [];
 
   String? _appliedPromoCode;
   String? get appliedPromoCode => _appliedPromoCode;
