@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/order_model.dart';
-import '../../domain/services/order_service.dart';
 
 /// Hero live status card showing queue code, estimated time, and barista notes.
 class OrderLiveStatusHero extends StatelessWidget {
@@ -297,30 +296,6 @@ class OrderLiveStatusHero extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 12),
-
-          // Simulation Button (to step through states during demo/testing)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => OrderService.instance.advanceStatus(),
-              icon: const Icon(
-                Icons.fast_forward_rounded,
-                size: 16,
-                color: AppColors.primaryBrown,
-              ),
-              label: Text(
-                status == OrderStatus.selesai
-                    ? 'Reset Ulang Simulasi'
-                    : 'Simulasi Status Berikutnya',
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryBrown,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );

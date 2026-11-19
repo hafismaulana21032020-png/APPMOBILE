@@ -10,7 +10,9 @@ import '../models/order_model.dart';
 /// Service managing Live Order Tracking and Order History for BreakFree.
 class OrderService extends ChangeNotifier {
   OrderService._() {
-    _initDefaultOrder();
+    _initDefaultHistory();
+    // Otomatis tarik pesanan aktif terbaru dari database MySQL saat app dibuka
+    syncActiveOrderFromBackend();
   }
 
   static final OrderService instance = OrderService._();
@@ -21,47 +23,35 @@ class OrderService extends ChangeNotifier {
   OrderModel? get activeOrder => _activeOrder;
   List<OrderModel> get orderHistory => List.unmodifiable(_orderHistory);
 
-  void _initDefaultOrder() {
-    final now = DateTime.now();
-    _activeOrder = OrderModel(
-      id: '#BF-2849',
-      queueNumber: 'A-14',
-      counterName: 'Counter Bar 01',
-      pickupType: 'Dine-in (Minum di Kafe)',
-      createdAt: now.subtract(const Duration(minutes: 4)),
-      status: OrderStatus.diproses,
-      estimatedMinutes: 6,
-      baristaName: 'Barista Reza',
-      baristaNote:
-          'Espresso baru selesai diekstrak, sedang menuang susu segar creamy.',
-      totalPrice: 42000,
-      paymentMethod: 'QRIS',
-      promoCode: 'BREAK20',
-      statusTimes: {
-        OrderStatus.diterima: now.subtract(const Duration(minutes: 4)),
-        OrderStatus.diproses: now.subtract(const Duration(minutes: 2)),
-      },
-      items: [
-        CartItemModel(
-          id: 'demo-item-1',
-          name: 'Breakfree Aren Latte',
-          options: 'Ice Coffee • Less Sugar • Oatmilk',
-          price: 25000,
-          quantity: 1,
-          image: AppAssets.breakfreeArenLatte,
-        ),
-        CartItemModel(
-          id: 'demo-item-2',
-          name: 'French Fries',
-          options: 'Snack • Saus Sambal & Mayo',
-          price: 17000,
-          quantity: 1,
-          image: AppAssets.coffeeBanner,
-        ),
-      ],
-    );
-
+  void _initDefaultHistory() {
     _orderHistory.addAll([
+      OrderModel(
+        id: '#BF-2849',
+        queueNumber: 'A-14',
+        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+        status: OrderStatus.selesai,
+        totalPrice: 42000,
+        paymentMethod: 'QRIS',
+        promoCode: 'BREAK20',
+        items: [
+          CartItemModel(
+            id: 'demo-item-1',
+            name: 'Breakfree Aren Latte',
+            options: 'Ice Coffee • Less Sugar • Oatmilk',
+            price: 25000,
+            quantity: 1,
+            image: AppAssets.breakfreeArenLatte,
+          ),
+          CartItemModel(
+            id: 'demo-item-2',
+            name: 'French Fries',
+            options: 'Snack • Saus Sambal & Mayo',
+            price: 17000,
+            quantity: 1,
+            image: AppAssets.coffeeBanner,
+          ),
+        ],
+      ),
       OrderModel(
         id: '#BF-0302',
         queueNumber: 'B-08',
@@ -210,7 +200,16 @@ class OrderService extends ChangeNotifier {
   /// yang diupdate oleh kasir melalui Web POS.
   Future<void> syncActiveOrderFromBackend() async {
     try {
-      final res = await ApiService.instance.getActiveOrder(_activeOrder?.id);
+      // Jika _activeOrder sudah ada dan bukan demo selesai, kita sinkronkan dengan ID tersebut.
+      // Jika _activeOrder null atau statusnya selesai, cari order aktif terbaru yang sedang diproses di database
+      String? orderIdToQuery;
+      if (_activeOrder != null &&
+          !_activeOrder!.id.contains('2849') &&
+          _activeOrder!.status != OrderStatus.selesai) {
+        orderIdToQuery = _activeOrder!.id;
+      }
+
+      final res = await ApiService.instance.getActiveOrder(orderIdToQuery);
       if (res['success'] == true && res['activeOrder'] != null) {
         final data = res['activeOrder'];
         final rawStatus = data['status']?.toString().toLowerCase().trim() ?? 'diterima';
@@ -228,6 +227,7 @@ class OrderService extends ChangeNotifier {
         final updatedTimes = <OrderStatus, DateTime>{
           OrderStatus.diterima: now.subtract(const Duration(minutes: 6)),
         };
+        // HANYA buat status timestamp jika backend memang sudah mengubah status ke tahap tersebut:
         if (status == OrderStatus.diproses || status == OrderStatus.siapDiambil || status == OrderStatus.selesai) {
           updatedTimes[OrderStatus.diproses] = now.subtract(const Duration(minutes: 3));
         }
@@ -253,8 +253,8 @@ class OrderService extends ChangeNotifier {
         }
 
         final updatedOrder = OrderModel(
-          id: data['id']?.toString() ?? _activeOrder?.id ?? '#BF-2849',
-          queueNumber: data['queueNumber']?.toString() ?? _activeOrder?.queueNumber ?? 'A-14',
+          id: data['id']?.toString() ?? _activeOrder?.id ?? '#BF-0000',
+          queueNumber: data['queueNumber']?.toString() ?? _activeOrder?.queueNumber ?? 'A-01',
           counterName: data['counterName']?.toString() ?? 'Counter Bar 01',
           pickupType: data['pickupType']?.toString() ?? 'Dine-in (Minum di Kafe)',
           createdAt: data['createdAt'] != null
@@ -283,8 +283,7 @@ class OrderService extends ChangeNotifier {
   void advanceStatus() {
     final current = _activeOrder;
     if (current == null) {
-      _initDefaultOrder();
-      notifyListeners();
+      syncActiveOrderFromBackend();
       return;
     }
 
@@ -328,8 +327,7 @@ class OrderService extends ChangeNotifier {
         break;
 
       case OrderStatus.selesai:
-        // Reset to in-progress demo order
-        _initDefaultOrder();
+        syncActiveOrderFromBackend();
         break;
     }
 
