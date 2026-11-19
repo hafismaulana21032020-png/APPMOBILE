@@ -7,6 +7,8 @@ import 'package:breakfree_app/core/utils/app_validators.dart';
 import 'package:breakfree_app/features/account/domain/services/user_service.dart';
 import 'package:breakfree_app/features/account/presentation/pages/account_page.dart';
 import 'package:breakfree_app/features/account/presentation/pages/profile_page.dart';
+import 'package:breakfree_app/features/account/presentation/pages/settings_page.dart';
+import 'package:breakfree_app/features/account/presentation/pages/notifications_page.dart';
 import 'package:breakfree_app/features/account/presentation/widgets/account_stats_row.dart';
 import 'package:breakfree_app/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:breakfree_app/features/auth/presentation/pages/login_page.dart';
@@ -21,7 +23,13 @@ import 'package:breakfree_app/features/home/presentation/pages/home_page.dart';
 import 'package:breakfree_app/features/home/presentation/pages/menu_page.dart';
 import 'package:breakfree_app/features/home/presentation/pages/non_coffee_menu_page.dart';
 import 'package:breakfree_app/features/home/presentation/pages/snack_menu_page.dart';
+import 'package:breakfree_app/features/home/presentation/pages/ai_chat_page.dart';
+import 'package:breakfree_app/features/home/domain/services/ai_chat_service.dart';
+import 'package:breakfree_app/features/home/presentation/widgets/ai_assistant_sheet.dart';
 import 'package:breakfree_app/features/home/presentation/widgets/home_promo_banner.dart';
+import 'package:breakfree_app/features/order/domain/models/order_model.dart';
+import 'package:breakfree_app/features/order/domain/services/order_service.dart';
+import 'package:breakfree_app/features/order/presentation/pages/order_tracking_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -64,6 +72,10 @@ void main() {
       'CartPage': const CartPage(),
       'AccountPage': const AccountPage(),
       'ProfilePage': const ProfilePage(),
+      'AiChatPage': const AiChatPage(),
+      'OrderTrackingPage': const OrderTrackingPage(),
+      'SettingsPage': const SettingsPage(),
+      'NotificationsPage': const NotificationsPage(),
     };
 
     for (final size in [const Size(360, 780), const Size(320, 568)]) {
@@ -268,6 +280,363 @@ void main() {
       await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
       expect(find.text('Apa itu BreakFree?'), findsOneWidget);
+    });
+
+    testWidgets('AI Chat Service and AiChatPage respond intelligently to queries',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        AiChatService.instance.resetChat();
+      });
+
+      // Verify initial state
+      AiChatService.instance.resetChat();
+      expect(AiChatService.instance.messages.isNotEmpty, isTrue);
+      expect(
+        AiChatService.instance.messages.first.text.contains('Barista AI'),
+        isTrue,
+      );
+
+      // Pump AiChatPage
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const AiChatPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Check header and greeting
+      expect(find.text('Barista AI BreakFree'), findsWidgets);
+      expect(find.text('Online'), findsWidgets);
+      expect(find.text('☕ Kopi Manis & Creamy'), findsOneWidget);
+
+      // Tap suggestion chip for sweet coffee
+      await tester.tap(find.text('☕ Kopi Manis & Creamy'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      // Barista responds with sweet coffee suggestions
+      expect(find.textContaining('Breakfree Aren Latte'), findsWidgets);
+      expect(find.text('+ Tambah'), findsWidgets);
+
+      // Send promo question
+      final inputField = find.byType(TextField);
+      await tester.enterText(inputField, 'ada promo apa aja?');
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('BREAK20'), findsWidgets);
+    });
+
+    testWidgets('AiAssistantSheet opens and switches between Chatbot and Recommendations',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () => showAiAssistantSheet(ctx),
+                child: const Text('Open Sheet'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Sheet'));
+      await tester.pumpAndSettle();
+
+      // Chat Barista tab is active by default
+      expect(find.text('Chat Barista AI'), findsOneWidget);
+      expect(find.text('Rekomendasi'), findsOneWidget);
+
+      // Switch to Rekomendasi tab
+      await tester.tap(find.text('Rekomendasi'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Menu Pilihan Barista Hari Ini'), findsOneWidget);
+      expect(find.text('Punya Pertanyaan Selera Khusus?'), findsOneWidget);
+
+      // Tap back to Chat Barista
+      await tester.tap(find.text('Chat Barista AI'));
+      await tester.pumpAndSettle();
+      expect(find.text('Barista AI BreakFree'), findsWidgets);
+    });
+
+    testWidgets('OrderService advances status and OrderTrackingPage updates live',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      // Verify active order exists
+      final orderService = OrderService.instance;
+      expect(orderService.activeOrder, isNotNull);
+      expect(orderService.activeOrder!.queueNumber.isNotEmpty, isTrue);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const OrderTrackingPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify header, queue code, and live stepper elements
+      expect(find.text('Lacak Pesanan'), findsOneWidget);
+      expect(find.text('LIVE TRACKING'), findsOneWidget);
+      expect(find.text('NOMOR ANTREAN'), findsOneWidget);
+      expect(find.text('Tahapan Pesanan'), findsOneWidget);
+      expect(find.text('Rincian Menu'), findsOneWidget);
+
+      // Verify advance simulation button transitions state
+      final initialStatusTitle = orderService.activeOrder!.status.title;
+      expect(find.text(initialStatusTitle), findsWidgets);
+
+      await tester.tap(find.text('Simulasi Status Berikutnya'));
+      await tester.pumpAndSettle();
+
+      final updatedStatusTitle = orderService.activeOrder!.status.title;
+      expect(find.text(updatedStatusTitle), findsWidgets);
+
+      // Switch to Riwayat tab
+      await tester.tap(find.textContaining('Riwayat'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Item'), findsWidgets);
+      expect(find.text('Selesai'), findsWidgets);
+
+      // Switch back to Pesanan Aktif
+      await tester.tap(find.text('Pesanan Aktif'));
+      await tester.pumpAndSettle();
+      expect(find.text('LIVE TRACKING'), findsOneWidget);
+    });
+
+    testWidgets('AccountPage Lacak Pesanan navigates to OrderTrackingPage',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const AccountPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap Lacak Pesanan button in AccountPage
+      await tester.tap(find.text('Lacak Pesanan'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OrderTrackingPage), findsOneWidget);
+      expect(find.text('LIVE TRACKING'), findsOneWidget);
+    });
+
+    testWidgets('SettingsPage menus are functional on tap', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const SettingsPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Test Bahasa picker
+      await tester.tap(find.text('Bahasa'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pilih Bahasa / Language'), findsOneWidget);
+      await tester.tap(find.text('English'));
+      await tester.pumpAndSettle();
+      expect(find.text('English'), findsOneWidget);
+
+      // 2. Test Tampilan / Theme picker
+      await tester.tap(find.text('Tampilan'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pilih Tema Tampilan'), findsOneWidget);
+      await tester.tap(find.text('Gelap (Dark)'));
+      await tester.pumpAndSettle();
+      expect(find.text('Gelap'), findsOneWidget);
+
+      // 3. Test Ubah kata sandi sheet
+      await tester.tap(find.text('Ubah kata sandi'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ubah Kata Sandi'), findsOneWidget);
+      expect(find.text('Simpan Kata Sandi Baru'), findsOneWidget);
+
+      // Test validation
+      await tester.tap(find.text('Simpan Kata Sandi Baru'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kata sandi saat ini harus diisi.'), findsOneWidget);
+
+      final textFields = find.byType(TextField);
+      await tester.enterText(textFields.at(0), 'lama1234');
+      await tester.enterText(textFields.at(1), 'baru1234');
+      await tester.enterText(textFields.at(2), 'baru1234');
+      await tester.tap(find.text('Simpan Kata Sandi Baru'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kata sandi berhasil diperbarui!'), findsOneWidget);
+
+      // 4. Test Kebijakan privasi sheet
+      await tester.ensureVisible(find.text('Kebijakan privasi'));
+      await tester.tap(find.text('Kebijakan privasi'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kebijakan Privasi'), findsOneWidget);
+      expect(find.text('Saya Mengerti'), findsOneWidget);
+      await tester.tap(find.text('Saya Mengerti'));
+      await tester.pumpAndSettle();
+
+      // 5. Test Hapus akun dialog
+      await tester.ensureVisible(find.text('Hapus akun'));
+      await tester.tap(find.text('Hapus akun'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hapus Akun Permanen?'), findsOneWidget);
+      await tester.tap(find.text('Batal'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hapus Akun Permanen?'), findsNothing);
+    });
+
+    testWidgets('AccountPage Keluar akun shows validation dialog before logout',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const AccountPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap Keluar akun
+      await tester.ensureVisible(find.text('Keluar akun'));
+      await tester.tap(find.text('Keluar akun'));
+      await tester.pumpAndSettle();
+
+      // Verify validation dialog appears instead of immediately logging out
+      expect(find.text('Keluar dari Akun?'), findsOneWidget);
+      expect(find.text('Batal'), findsOneWidget);
+      expect(find.text('Keluar'), findsOneWidget);
+
+      // Tap Batal
+      await tester.tap(find.text('Batal'));
+      await tester.pumpAndSettle();
+
+      // Dialog is dismissed and user remains on AccountPage
+      expect(find.text('Keluar dari Akun?'), findsNothing);
+      expect(find.byType(AccountPage), findsOneWidget);
+
+      // Tap Keluar akun again and confirm
+      await tester.ensureVisible(find.text('Keluar akun'));
+      await tester.tap(find.text('Keluar akun'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Keluar'));
+      await tester.pumpAndSettle();
+
+      // Successfully redirected to LoginPage
+      expect(find.byType(LoginPage), findsOneWidget);
+    });
+
+    testWidgets('HomePage notification button opens NotificationsPage and can navigate back',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const HomePage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify notification button exists on HomePage
+      final notifBtn = find.byTooltip('Notifikasi');
+      expect(notifBtn, findsOneWidget);
+
+      // Tap notification button
+      await tester.tap(notifBtn);
+      await tester.pumpAndSettle();
+
+      // Verifies it opened NotificationsPage
+      expect(find.byType(NotificationsPage), findsOneWidget);
+
+      // Tap back button
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+
+      // Verifies it returned to HomePage
+      expect(find.byType(HomePage), findsOneWidget);
+    });
+
+    testWidgets('AccountPage header has no top notification button',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const AccountPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify header has BreakFree and Akun Saya
+      expect(find.text('Akun Saya'), findsOneWidget);
+      // Verify no notification tooltip button in header
+      expect(find.byTooltip('Notifikasi'), findsNothing);
     });
   });
 }

@@ -8,6 +8,7 @@ import '../../../../core/utils/app_validators.dart';
 import '../../../../core/widgets/auth_header_bar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../account/domain/services/user_service.dart';
 import '../widgets/auth_info_card.dart';
 
@@ -84,6 +85,15 @@ class _RegisterPageState extends State<RegisterPage> {
       phone: currentUser.phone,
       birthDate: currentUser.birthDate,
     );
+
+    // Kirim pendaftaran akun ke backend terpadu
+    ApiService.instance.register(name: name, email: email, password: password).then((res) {
+      if (res['success'] == true && res['token'] != null) {
+        ApiService.instance.setAuthToken(res['token']);
+      }
+    }).catchError((e) {
+      debugPrint('Register backend error: $e');
+    });
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(

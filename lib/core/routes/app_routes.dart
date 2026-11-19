@@ -19,4 +19,6 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String notifications = '/notifications';
   static const String cashbackPoints = '/cashback-points';
+  static const String aiChat = '/ai-chat';
+  static const String orderTracking = '/order-tracking';
 }

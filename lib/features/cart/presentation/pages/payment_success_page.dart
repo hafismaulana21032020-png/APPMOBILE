@@ -14,9 +14,7 @@ class PaymentSuccessPage extends StatelessWidget {
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final paymentMethod = args?['paymentMethod'] as String? ?? 'QRIS';
-
-    // Generate nomor pesanan random
-    final orderNumber =
+    final orderNumber = args?['orderNumber'] as String? ??
         '#BF-${(Random().nextInt(9000) + 1000).toString().padLeft(4, '0')}';
 
     return Scaffold(
@@ -196,15 +194,7 @@ class PaymentSuccessPage extends StatelessWidget {
                     height: 52,
                     child: ElevatedButton(
                       onPressed: () {
-                        // TODO: Navigate to order tracking page
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Fitur Lacak Pesanan belum tersedia'),
-                            backgroundColor: AppColors.primaryBrown,
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
+                        Navigator.pushNamed(context, AppRoutes.orderTracking);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryBrown,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cart/domain/services/cart_service.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
@@ -449,6 +450,35 @@ class _HelpPageState extends State<HelpPage> {
                             width: double.infinity,
                             height: 48,
                             child: ElevatedButton.icon(
+                              onPressed: () =>
+                                  Navigator.pushNamed(context, AppRoutes.aiChat),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryBrown,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              icon: const Icon(
+                                Icons.auto_awesome,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                'Tanya Barista AI (Chatbot)',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 44,
+                            child: OutlinedButton.icon(
                               onPressed: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -460,24 +490,25 @@ class _HelpPageState extends State<HelpPage> {
                                   ),
                                 );
                               },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryBrown,
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                  color: AppColors.primaryBrown,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                elevation: 0,
                               ),
                               icon: const Icon(
                                 Icons.chat_bubble_outline_rounded,
-                                color: Colors.white,
+                                color: AppColors.primaryBrown,
                                 size: 18,
                               ),
                               label: const Text(
                                 'Chat layanan pelanggan',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 13.5,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: AppColors.primaryBrown,
                                 ),
                               ),
                             ),

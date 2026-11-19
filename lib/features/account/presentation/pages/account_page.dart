@@ -13,6 +13,92 @@ import '../../domain/services/user_service.dart';
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
 
+  void _showLogoutDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        title: const Row(
+          children: [
+            Icon(
+              Icons.logout_rounded,
+              color: Color(0xFFD32F2F),
+              size: 22,
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Keluar dari Akun?',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkText,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Apakah kamu yakin ingin keluar dari akun BreakFree? Kamu perlu masuk kembali untuk mengakses pesanan dan poin cashback-mu.',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.secondaryText,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text(
+              'Batal',
+              style: TextStyle(
+                color: AppColors.secondaryText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              HomeTabController.instance.resetToHome();
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRoutes.login,
+                (r) => false,
+              );
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Kamu telah berhasil keluar dari akun.'),
+                  backgroundColor: AppColors.primaryBrown,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD32F2F),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Keluar',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -33,60 +119,26 @@ class AccountPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ══════════════════════ HEADER BAR ══════════════════════
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 16, 10, 0),
-                    child: Row(
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(18, 16, 18, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'BreakFree',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.darkBrown,
-                                  letterSpacing: -0.4,
-                                ),
-                              ),
-                              Text(
-                                'Akun Saya',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.secondaryText,
-                                ),
-                              ),
-                            ],
+                        Text(
+                          'BreakFree',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkBrown,
+                            letterSpacing: -0.4,
                           ),
                         ),
-                        Stack(
-                          children: [
-                            IconButton(
-                              onPressed: () => Navigator.pushNamed(
-                                context,
-                                AppRoutes.notifications,
-                              ),
-                              icon: const Icon(
-                                Icons.notifications_none_rounded,
-                                size: 26,
-                                color: AppColors.darkBrown,
-                              ),
-                            ),
-                            // Notif badge
-                            Positioned(
-                              right: 8,
-                              top: 8,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFE53935),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          'Akun Saya',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.secondaryText,
+                          ),
                         ),
                       ],
                     ),
@@ -240,7 +292,7 @@ class AccountPage extends StatelessWidget {
                           icon: Icons.receipt_long_rounded,
                           label: 'Pesanan\nSaya',
                           onTap: () =>
-                              Navigator.pushNamed(context, AppRoutes.cart),
+                              Navigator.pushNamed(context, AppRoutes.orderTracking),
                         ),
                         const SizedBox(width: 10),
                         _QuickAction(
@@ -280,16 +332,9 @@ class AccountPage extends StatelessWidget {
                       height: 48,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                cartCount > 0
-                                    ? 'Ada $cartCount item di keranjang siap untuk dipesan.'
-                                    : 'Semua pesanan sebelumnya sudah selesai.',
-                              ),
-                              backgroundColor: AppColors.primaryBrown,
-                              duration: const Duration(seconds: 2),
-                            ),
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.orderTracking,
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -324,23 +369,23 @@ class AccountPage extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Transaksi terbaru',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.darkText,
+                        const Expanded(
+                          child: Text(
+                            'Transaksi terbaru',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkText,
+                            ),
                           ),
                         ),
                         GestureDetector(
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('Menampilkan 3 transaksi terakhir.'),
-                                backgroundColor: AppColors.primaryBrown,
-                                duration: Duration(seconds: 2),
-                              ),
+                            Navigator.pushNamed(
+                              context,
+                              AppRoutes.orderTracking,
+                              arguments: 1,
                             );
                           },
                           child: const Text(
@@ -423,14 +468,7 @@ class AccountPage extends StatelessWidget {
                             title: 'Keluar akun',
                             iconColor: const Color(0xFFD32F2F),
                             titleColor: const Color(0xFFD32F2F),
-                            onTap: () {
-                              HomeTabController.instance.resetToHome();
-                              Navigator.pushNamedAndRemoveUntil(
-                                context,
-                                AppRoutes.login,
-                                (r) => false,
-                              );
-                            },
+                            onTap: () => _showLogoutDialog(context),
                           ),
                           const Divider(
                               height: 1, color: AppColors.inputBorderColor),
@@ -685,10 +723,19 @@ class _TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
+    return InkWell(
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.orderTracking,
+          arguments: 1,
+        );
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          children: [
           Container(
             width: 38,
             height: 38,
@@ -759,7 +806,8 @@ class _TransactionTile extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

@@ -6,6 +6,7 @@ import '../../domain/models/cart_item_model.dart';
 import '../../domain/services/cart_service.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../account/domain/services/user_service.dart';
+import '../../../order/domain/services/order_service.dart';
 import '../widgets/cart_item_card.dart';
 
 class CartPage extends StatefulWidget {
@@ -155,6 +156,16 @@ class _CartPageState extends State<CartPage> {
   void _onCheckout() {
     final paymentMethod = _selectedPaymentMethod;
     final total = _totalPayment;
+    final promoCode = CartService.instance.appliedPromoCode;
+    final cartItems = List<CartItemModel>.from(CartService.instance.items);
+
+    // Buat live order di OrderService
+    final newOrder = OrderService.instance.createOrderFromCart(
+      items: cartItems,
+      paymentMethod: paymentMethod,
+      totalPrice: total,
+      promoCode: promoCode,
+    );
 
     // Setiap pembelian menggunakan aplikasi mendapatkan cashback poin (100 poin = Rp 1.000)
     final earnedPoints = (total >= 40000 ? 100 : 50);
@@ -169,6 +180,8 @@ class _CartPageState extends State<CartPage> {
       AppRoutes.paymentSuccess,
       (route) => false,
       arguments: {
+        'orderNumber': newOrder.id,
+        'queueNumber': newOrder.queueNumber,
         'paymentMethod': paymentMethod,
         'totalPayment': total,
         'earnedPoints': earnedPoints,

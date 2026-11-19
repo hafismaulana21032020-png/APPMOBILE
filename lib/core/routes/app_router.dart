@@ -17,6 +17,8 @@ import '../../features/account/presentation/pages/help_page.dart';
 import '../../features/account/presentation/pages/settings_page.dart';
 import '../../features/account/presentation/pages/notifications_page.dart';
 import '../../features/account/presentation/pages/cashback_points_page.dart';
+import '../../features/home/presentation/pages/ai_chat_page.dart';
+import '../../features/order/presentation/pages/order_tracking_page.dart';
 import 'app_routes.dart';
 
 /// Custom PageRouteBuilder dengan transisi slide halus (smooth slide transition)
@@ -171,6 +173,19 @@ class AppRouter {
       case AppRoutes.cashbackPoints:
         return SmoothSlidePageRoute(
           page: const CashbackPointsPage(),
+          settings: settings,
+        );
+      case AppRoutes.aiChat:
+        return SmoothSlidePageRoute(
+          page: const AiChatPage(),
+          settings: settings,
+        );
+      case AppRoutes.orderTracking:
+        final initialTab = (settings.arguments is int)
+            ? settings.arguments as int
+            : 0;
+        return SmoothSlidePageRoute(
+          page: OrderTrackingPage(initialTabIndex: initialTab),
           settings: settings,
         );
       default:

@@ -8,6 +8,8 @@ import '../../../../core/utils/app_validators.dart';
 import '../../../../core/widgets/auth_header_bar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/services/api_service.dart';
+import '../../../account/domain/services/user_service.dart';
 import '../widgets/coffee_banner.dart';
 
 class LoginPage extends StatefulWidget {
@@ -19,7 +21,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController =
-      TextEditingController(text: 'hafizizzza@gmail.com');
+      TextEditingController(text: 'hafizizza@gmail.com');
   final TextEditingController _passwordController =
       TextEditingController(text: 'AnakLuarGerbang');
   bool _isObscurePassword = true;
@@ -31,7 +33,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _onLogin() {
+  Future<void> _onLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -55,6 +57,27 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
+    try {
+      final res = await ApiService.instance.login(email: email, password: password);
+      if (res['success'] == true) {
+        if (res['token'] != null) {
+          ApiService.instance.setAuthToken(res['token']);
+        }
+        if (res['customer'] != null) {
+          final c = res['customer'];
+          UserService.instance.updateProfile(
+            name: c['name'] ?? email.split('@').first.toUpperCase(),
+            email: c['email'] ?? email,
+            phone: c['phone'] ?? '0812 •••• 7890',
+            birthDate: c['birthDate'] ?? '18 Mei 2000',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Login backend error: $e');
+    }
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../../core/services/api_service.dart';
 
 class UserService extends ChangeNotifier {
   UserService._();
@@ -8,7 +9,7 @@ class UserService extends ChangeNotifier {
   String _email = 'hafiz.maulana@gmail.com';
   String _phone = '0812 •••• 7890';
   String _birthDate = '18 Mei 2000';
-  final String _memberBadge = 'Member Gold';
+  String _memberBadge = 'Member Gold';
   int _points = 1240;
 
   String get name => _name;
@@ -53,6 +54,32 @@ class UserService extends ChangeNotifier {
     _phone = phone;
     _birthDate = birthDate;
     notifyListeners();
+
+    // Sync secara asinkron ke BreakFree Backend API
+    ApiService.instance.updateProfile(
+      name: name,
+      phone: phone,
+      birthDate: birthDate,
+    );
+  }
+
+  /// Sinkronisasi profil dengan data terbaru dari database backend
+  Future<void> syncWithBackend() async {
+    try {
+      final res = await ApiService.instance.getProfile();
+      if (res['success'] == true && res['profile'] != null) {
+        final p = res['profile'];
+        _name = p['name'] ?? _name;
+        _email = p['email'] ?? _email;
+        _phone = p['phone'] ?? _phone;
+        _birthDate = p['birthDate'] ?? _birthDate;
+        _memberBadge = p['memberBadge'] ?? _memberBadge;
+        _points = p['points'] ?? _points;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('UserService syncWithBackend error: $e');
+    }
   }
 }
 

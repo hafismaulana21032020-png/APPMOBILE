@@ -171,13 +171,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Text(
-                    'Notifikasi',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkText,
-                      letterSpacing: -0.3,
+                  const Expanded(
+                    child: Text(
+                      'Notifikasi',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkText,
+                        letterSpacing: -0.3,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -216,29 +219,35 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primaryBrown,
-                                shape: BoxShape.circle,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primaryBrown,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              unread > 0
-                                  ? '$unread notifikasi belum dibaca'
-                                  : 'Semua notifikasi sudah dibaca',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.secondaryText,
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  unread > 0
+                                      ? '$unread notifikasi belum dibaca'
+                                      : 'Semua notifikasi sudah dibaca',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.secondaryText,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                        if (unread > 0)
+                        if (unread > 0) ...[
+                          const SizedBox(width: 8),
                           GestureDetector(
                             onTap: _markAllAsRead,
                             child: const Text(
@@ -250,6 +259,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               ),
                             ),
                           ),
+                        ],
                       ],
                     ),
 
@@ -313,12 +323,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: const [
-                          Text(
-                            'Hari ini',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.darkText,
+                          Expanded(
+                            child: Text(
+                              'Hari ini',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkText,
+                              ),
                             ),
                           ),
                           Text(
@@ -356,12 +369,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: const [
-                          Text(
-                            'Kemarin',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.darkText,
+                          Expanded(
+                            child: Text(
+                              'Kemarin',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkText,
+                              ),
                             ),
                           ),
                           Text(
@@ -482,14 +498,17 @@ class _NotificationCard extends StatelessWidget {
                     // Category & Time Row
                     Row(
                       children: [
-                        Text(
-                          item.category,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.secondaryText,
+                        Flexible(
+                          child: Text(
+                            item.category,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.secondaryText,
+                            ),
                           ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         Text(
                           item.time,
                           style: const TextStyle(
