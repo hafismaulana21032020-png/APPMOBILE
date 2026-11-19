@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../account/domain/services/user_service.dart';
 import '../../../cart/domain/models/cart_item_model.dart';
 import '../models/order_model.dart';
 
@@ -175,6 +176,7 @@ class OrderService extends ChangeNotifier {
     ApiService.instance.checkoutOrder({
       'orderId': newOrder.id,
       'queueNumber': newOrder.queueNumber,
+      'customerName': UserService.instance.name,
       'items': items.map((it) => {
         'id': it.id,
         'name': it.name,
