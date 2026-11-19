@@ -10,6 +10,7 @@ import '../widgets/floating_cart_bar.dart';
 import '../widgets/home_bottom_nav_bar.dart';
 import '../widgets/home_nav_helper.dart';
 import '../widgets/non_coffee_list_item_card.dart';
+import '../widgets/product_order_bottom_sheet.dart';
 
 class NonCoffeeMenuPage extends StatefulWidget {
   const NonCoffeeMenuPage({super.key});
@@ -34,21 +35,7 @@ class _NonCoffeeMenuPageState extends State<NonCoffeeMenuPage> {
       .toList();
 
   void _onAddToCart(ProductModel product) {
-    CartService.instance.addProduct(product);
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product.name} masuk ke keranjang belanja!'),
-        backgroundColor: AppColors.primaryBrown,
-        duration: const Duration(seconds: 2),
-        action: SnackBarAction(
-          label: 'Lihat',
-          textColor: AppColors.buttonYellow,
-          onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
-        ),
-      ),
-    );
+    ProductOrderBottomSheet.show(context, product);
   }
 
   Widget _buildSectionHeader({

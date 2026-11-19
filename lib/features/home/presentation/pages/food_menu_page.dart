@@ -11,6 +11,7 @@ import '../widgets/home_bottom_nav_bar.dart';
 import '../widgets/home_nav_helper.dart';
 import '../widgets/indomie_item_card.dart';
 import '../widgets/non_coffee_list_item_card.dart';
+import '../widgets/product_order_bottom_sheet.dart';
 
 class FoodMenuPage extends StatefulWidget {
   const FoodMenuPage({super.key});
@@ -43,6 +44,11 @@ class _FoodMenuPageState extends State<FoodMenuPage> {
       .firstWhere((p) => p?.id == 'm-addon-2', orElse: () => null);
 
   void _onAddToCart(ProductModel product, [String? extra, int? customPrice]) {
+    if (extra == null && customPrice == null) {
+      ProductOrderBottomSheet.show(context, product);
+      return;
+    }
+
     CartService.instance.addProduct(
       product,
       options: extra,

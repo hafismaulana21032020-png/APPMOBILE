@@ -76,7 +76,7 @@ class CartItemCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   item.options,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11,

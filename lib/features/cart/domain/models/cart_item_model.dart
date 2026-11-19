@@ -7,6 +7,7 @@ class CartItemModel {
   final int price;
   int quantity;
   final String image;
+  final String? note;
 
   CartItemModel({
     required this.id,
@@ -15,6 +16,7 @@ class CartItemModel {
     required this.price,
     this.quantity = 1,
     required this.image,
+    this.note,
   });
 
   int get totalPrice => price * quantity;

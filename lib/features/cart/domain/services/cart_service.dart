@@ -33,15 +33,22 @@ class CartService extends ChangeNotifier {
     ProductModel product, {
     String? options,
     int? customPrice,
+    int quantity = 1,
+    String? note,
   }) {
     final itemPrice = customPrice ?? product.price;
-    final itemOptions =
+    final baseOptions =
         options ?? product.tag ?? (product.subcategory ?? 'Regular');
+    final cleanNote = note?.trim();
+    final hasNote = cleanNote != null && cleanNote.isNotEmpty;
+    final itemOptions =
+        hasNote ? '$baseOptions (Catatan: $cleanNote)' : baseOptions;
     final itemId = '${product.id}_$itemOptions';
 
+    final qtyToAdd = quantity > 0 ? quantity : 1;
     final existingIndex = _items.indexWhere((item) => item.id == itemId);
     if (existingIndex != -1) {
-      _items[existingIndex].quantity++;
+      _items[existingIndex].quantity += qtyToAdd;
     } else {
       _items.add(
         CartItemModel(
@@ -49,10 +56,11 @@ class CartService extends ChangeNotifier {
           name: product.name,
           options: itemOptions,
           price: itemPrice,
-          quantity: 1,
+          quantity: qtyToAdd,
           image: product.image.isNotEmpty
               ? product.image
               : AppAssets.breakfreeArenLatte,
+          note: cleanNote,
         ),
       );
     }

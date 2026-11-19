@@ -5,9 +5,11 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/app_formatters.dart';
 import '../../../cart/domain/services/cart_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
+import 'product_order_bottom_sheet.dart';
 
 class MenuTabContent extends StatefulWidget {
   final String initialCategory;
@@ -91,12 +93,20 @@ class _MenuTabContentState extends State<MenuTabContent> {
     }
   }
 
-  void _addProductToCart(ProductModel product) {
-    CartService.instance.addProduct(product);
+  void _addProductToCart(ProductModel product, {int quantity = 1, String? note}) {
+    CartService.instance.addProduct(
+      product,
+      quantity: quantity,
+      note: note,
+    );
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${product.name} masuk ke keranjang belanja!'),
+        content: Text(
+          quantity > 1
+              ? '$quantity pcs ${product.name} masuk ke keranjang belanja!'
+              : '${product.name} masuk ke keranjang belanja!',
+        ),
         backgroundColor: AppColors.primaryBrown,
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
@@ -109,123 +119,7 @@ class _MenuTabContentState extends State<MenuTabContent> {
   }
 
   void _showProductDetailSheet(ProductModel product) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (sheetCtx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: SizedBox(
-                        width: 72,
-                        height: 72,
-                        child: Image.asset(
-                          product.image.isNotEmpty
-                              ? product.image
-                              : AppAssets.breakfreeArenLatte,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                            color: AppColors.cardBgColor,
-                            child: const Icon(
-                              Icons.coffee_rounded,
-                              color: AppColors.primaryBrown,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product.tag != null
-                                ? '${product.name} (${product.tag})'
-                                : product.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.darkText,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            product.subcategory ?? product.category,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.secondaryText,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            product.formattedPrice,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.darkBrown,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (product.description.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    product.description,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.secondaryText,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(sheetCtx);
-                      _addProductToCart(product);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBrown,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: const Text(
-                      '+ Tambah ke Keranjang',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    ProductOrderBottomSheet.show(context, product);
   }
 
   @override

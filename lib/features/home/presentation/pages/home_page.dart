@@ -19,6 +19,7 @@ import '../widgets/home_story_card.dart';
 import '../widgets/home_voucher_card.dart';
 import '../widgets/menu_list_view.dart';
 import '../widgets/product_card.dart';
+import '../widgets/product_order_bottom_sheet.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -57,21 +58,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onAddToCart(ProductModel product) {
-    CartService.instance.addProduct(product);
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product.name} masuk ke keranjang belanja!'),
-        backgroundColor: AppColors.primaryBrown,
-        duration: const Duration(seconds: 2),
-        action: SnackBarAction(
-          label: 'Lihat',
-          textColor: AppColors.buttonYellow,
-          onPressed: _onViewCart,
-        ),
-      ),
-    );
+    ProductOrderBottomSheet.show(context, product);
   }
 
   void _onToggleVoucher() {
