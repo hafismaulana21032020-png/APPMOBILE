@@ -4,6 +4,13 @@ import '../../../cart/domain/models/cart_item_model.dart';
 
 /// Status live tracking pesanan BreakFree.
 enum OrderStatus {
+  menungguPembayaran(
+    stepIndex: -1,
+    title: 'Menunggu Pembayaran',
+    subtitle: 'Silakan lakukan pembayaran tunai di kasir',
+    badgeText: 'Belum Bayar',
+    icon: Icons.payments_rounded,
+  ),
   diterima(
     stepIndex: 0,
     title: 'Pesanan Diterima',

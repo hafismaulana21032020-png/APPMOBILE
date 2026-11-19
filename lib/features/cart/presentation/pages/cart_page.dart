@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../domain/models/cart_item_model.dart';
@@ -26,9 +27,9 @@ class _CartPageState extends State<CartPage> {
   String? _appliedCode;
   final double _discountPercent = 0.20;
 
-  // Metode Pembayaran Terpilih
+  // Metode Pembayaran Terpilih (Hanya QRIS & Cash)
   String _selectedPaymentMethod = 'QRIS';
-  final List<String> _paymentMethods = ['QRIS', 'GoPay', 'OVO', 'Dana'];
+  final List<String> _paymentMethods = ['QRIS', 'Cash'];
 
   @override
   void initState() {
@@ -154,8 +155,274 @@ class _CartPageState extends State<CartPage> {
     }
   }
 
-  void _onCheckout() async {
-    final paymentMethod = _selectedPaymentMethod;
+  void _onCheckout() {
+    if (_cartItems.isEmpty) return;
+    if (_selectedPaymentMethod == 'QRIS') {
+      _showQrisBottomSheet();
+    } else {
+      _showCashConfirmDialog();
+    }
+  }
+
+  void _showQrisBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Title
+                  const Text(
+                    'Pembayaran QRIS',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkText,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Scan kode QRIS di bawah ini untuk membayar',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Total Tagihan
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF9F6F0),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.inputBorderColor),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Total Pembayaran',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.secondaryText,
+                          ),
+                        ),
+                        Text(
+                          _formatPrice(_totalPayment),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkBrown,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Gambar QRIS Resmi yang sudah diproses & bersih
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.inputBorderColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(10),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        AppAssets.qrisBreakfree,
+                        height: 310,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.verified_rounded, size: 15, color: Color(0xFF2E7D32)),
+                      SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Mendukung semua Bank (BSI, BCA, BRI, dll) & e-Wallet',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Tombol Konfirmasi Pembayaran
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _executeCheckout('QRIS');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBrown,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Saya Sudah Membayar',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.secondaryText,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCashConfirmDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(
+          children: [
+            Icon(Icons.payments_rounded, color: AppColors.primaryBrown, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Bayar Tunai di Kasir',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkText,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Pesanan kamu akan dibuat dengan status Menunggu Pembayaran.',
+              style: TextStyle(fontSize: 13, color: AppColors.darkText, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFFE082)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Total yang harus dibayar di kasir:',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF795548)),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _formatPrice(_totalPayment),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF5D4037),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Silakan sebutkan nomor antrean ke kasir untuk membayar. Begitu kasir konfirmasi, barista akan segera meracik pesananmu.',
+              style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText, height: 1.35),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: AppColors.secondaryText)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _executeCheckout('Cash');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBrown,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Pesan Sekarang',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _executeCheckout(String paymentMethod) async {
     final total = _totalPayment;
     final promoCode = CartService.instance.appliedPromoCode;
     final cartItems = List<CartItemModel>.from(CartService.instance.items);
@@ -168,7 +435,7 @@ class _CartPageState extends State<CartPage> {
       promoCode: promoCode,
     );
 
-    // Setiap pembelian menggunakan aplikasi mendapatkan cashback poin (100 poin = Rp 1.000)
+    // Setiap pembelian menggunakan aplikasi mendapatkan cashback poin
     final earnedPoints = (total >= 40000 ? 100 : 50);
     UserService.instance.addPoints(earnedPoints);
 
@@ -357,21 +624,23 @@ class _CartPageState extends State<CartPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Row Pilihan Pembayaran (QRIS, GoPay, OVO, Dana)
+                    // Row Pilihan Pembayaran (QRIS, Cash)
                     Row(
                       children: _paymentMethods.map((method) {
                         final isSelected = _selectedPaymentMethod == method;
+                        final isQris = method == 'QRIS';
                         return Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 5),
                             child: GestureDetector(
                               onTap: () {
                                 setState(() {
                                   _selectedPaymentMethod = method;
                                 });
                               },
-                              child: Container(
-                                height: 44,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                height: 50,
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? AppColors.buttonYellow
@@ -379,26 +648,47 @@ class _CartPageState extends State<CartPage> {
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isSelected
-                                        ? const Color(0xFFE2C481)
+                                        ? const Color(0xFFC9A254)
                                         : AppColors.inputBorderColor,
-                                    width: 1.0,
+                                    width: isSelected ? 1.5 : 1.0,
                                   ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: AppColors.buttonYellow.withAlpha(80),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                alignment: Alignment.center,
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    method,
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.w500,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      isQris
+                                          ? Icons.qr_code_2_rounded
+                                          : Icons.payments_rounded,
+                                      size: 20,
                                       color: AppColors.darkBrown,
                                     ),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        isQris ? 'QRIS' : 'Cash (Kasir)',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: isSelected
+                                              ? FontWeight.bold
+                                              : FontWeight.w600,
+                                          color: AppColors.darkBrown,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -530,7 +820,9 @@ class _CartPageState extends State<CartPage> {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          'Bayar Sekarang (${_formatPrice(_totalPayment)})',
+                          _selectedPaymentMethod == 'Cash'
+                              ? 'Pesan & Bayar di Kasir (${_formatPrice(_totalPayment)})'
+                              : 'Bayar via QRIS (${_formatPrice(_totalPayment)})',
                           maxLines: 1,
                           style: const TextStyle(
                             fontSize: 15,

@@ -12,4 +12,5 @@ class AppAssets {
   static const String caramelMacchiato = 'assets/images/caramel_macchiato.jpg';
   static const String nasiGorengTelur = 'assets/images/nasi_goreng_telur.jpg';
   static const String grapeFizz = 'assets/images/grape_fizz.jpg';
+  static const String qrisBreakfree = 'assets/images/qris_breakfree.png';
 }

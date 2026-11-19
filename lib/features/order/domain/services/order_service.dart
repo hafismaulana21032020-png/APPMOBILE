@@ -38,23 +38,28 @@ class OrderService extends ChangeNotifier {
 
     final orderId = '#BF-$randomNum';
 
+    final isCash = paymentMethod.toLowerCase().contains('cash') || paymentMethod.toLowerCase().contains('tunai');
+    final initialStatus = isCash ? OrderStatus.menungguPembayaran : OrderStatus.diterima;
+    final initialBaristaNote = isCash
+        ? 'Menunggu pembayaran tunai di kasir. Silakan bayar ke kasir agar pesanan segera diracik.'
+        : 'Pesanan telah diterima kasir & dapur. Segera masuk proses peracikan.';
+
     final newOrder = OrderModel(
       id: orderId,
       queueNumber: queueCode,
       counterName: 'Counter Bar 01',
       pickupType: pickupType,
       createdAt: now,
-      status: OrderStatus.diterima,
-      estimatedMinutes: items.length > 2 ? 12 : 8,
+      status: initialStatus,
+      estimatedMinutes: isCash ? 10 : (items.length > 2 ? 12 : 8),
       baristaName: 'Barista Reza',
-      baristaNote:
-          'Pesanan telah diterima kasir & dapur. Segera masuk proses peracikan.',
+      baristaNote: initialBaristaNote,
       totalPrice: totalPrice,
       paymentMethod: paymentMethod,
       promoCode: promoCode,
       items: List.from(items),
       statusTimes: {
-        OrderStatus.diterima: now,
+        initialStatus: now,
       },
     );
 
@@ -109,7 +114,9 @@ class OrderService extends ChangeNotifier {
         final rawStatus = data['status']?.toString().toLowerCase().trim() ?? 'diterima';
 
         OrderStatus status = OrderStatus.diterima;
-        if (rawStatus == 'diproses') {
+        if (rawStatus == 'menunggupembayaran' || rawStatus == 'menunggu pembayaran' || rawStatus == 'menunggu bayar') {
+          status = OrderStatus.menungguPembayaran;
+        } else if (rawStatus == 'diproses') {
           status = OrderStatus.diproses;
         } else if (rawStatus == 'siapdiambil' || rawStatus == 'siap diambil' || rawStatus == 'siap') {
           status = OrderStatus.siapDiambil;
@@ -118,18 +125,20 @@ class OrderService extends ChangeNotifier {
         }
 
         final now = DateTime.now();
-        final updatedTimes = <OrderStatus, DateTime>{
-          OrderStatus.diterima: now.subtract(const Duration(minutes: 6)),
-        };
-        // HANYA buat status timestamp jika backend memang sudah mengubah status ke tahap tersebut:
-        if (status == OrderStatus.diproses || status == OrderStatus.siapDiambil || status == OrderStatus.selesai) {
-          updatedTimes[OrderStatus.diproses] = now.subtract(const Duration(minutes: 3));
-        }
-        if (status == OrderStatus.siapDiambil || status == OrderStatus.selesai) {
-          updatedTimes[OrderStatus.siapDiambil] = now.subtract(const Duration(minutes: 1));
-        }
-        if (status == OrderStatus.selesai) {
-          updatedTimes[OrderStatus.selesai] = now;
+        final updatedTimes = <OrderStatus, DateTime>{};
+        if (status == OrderStatus.menungguPembayaran) {
+          updatedTimes[OrderStatus.menungguPembayaran] = now;
+        } else {
+          updatedTimes[OrderStatus.diterima] = now.subtract(const Duration(minutes: 6));
+          if (status == OrderStatus.diproses || status == OrderStatus.siapDiambil || status == OrderStatus.selesai) {
+            updatedTimes[OrderStatus.diproses] = now.subtract(const Duration(minutes: 3));
+          }
+          if (status == OrderStatus.siapDiambil || status == OrderStatus.selesai) {
+            updatedTimes[OrderStatus.siapDiambil] = now.subtract(const Duration(minutes: 1));
+          }
+          if (status == OrderStatus.selesai) {
+            updatedTimes[OrderStatus.selesai] = now;
+          }
         }
 
         List<CartItemModel> items = [];

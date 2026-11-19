@@ -112,6 +112,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                     OrderTimelineStepper(
                       currentStatus: order.status,
                       statusTimes: order.statusTimes,
+                      paymentMethod: order.paymentMethod,
                     ),
                   ],
                 ),
@@ -368,6 +369,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
           OrderTimelineStepper(
             currentStatus: activeOrder.status,
             statusTimes: activeOrder.statusTimes,
+            paymentMethod: activeOrder.paymentMethod,
           ),
           const SizedBox(height: 16),
 

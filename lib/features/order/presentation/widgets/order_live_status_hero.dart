@@ -199,19 +199,23 @@ class OrderLiveStatusHero extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Estimated Time Badge
+          // Estimated Time / Payment Instruction Badge
           if (status != OrderStatus.selesai)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: status == OrderStatus.siapDiambil
                     ? const Color(0xFFE8F5E9)
-                    : AppColors.backgroundColor,
+                    : (status == OrderStatus.menungguPembayaran
+                        ? const Color(0xFFFFF8E1)
+                        : AppColors.backgroundColor),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: status == OrderStatus.siapDiambil
                       ? const Color(0xFF81C784)
-                      : AppColors.inputBorderColor,
+                      : (status == OrderStatus.menungguPembayaran
+                          ? const Color(0xFFFFD54F)
+                          : AppColors.inputBorderColor),
                 ),
               ),
               child: Row(
@@ -219,25 +223,33 @@ class OrderLiveStatusHero extends StatelessWidget {
                   Icon(
                     status == OrderStatus.siapDiambil
                         ? Icons.check_circle_outline_rounded
-                        : Icons.timer_outlined,
+                        : (status == OrderStatus.menungguPembayaran
+                            ? Icons.payments_outlined
+                            : Icons.timer_outlined),
                     size: 16,
                     color: status == OrderStatus.siapDiambil
                         ? const Color(0xFF2E7D32)
-                        : AppColors.primaryBrown,
+                        : (status == OrderStatus.menungguPembayaran
+                            ? const Color(0xFFE65100)
+                            : AppColors.primaryBrown),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       status == OrderStatus.siapDiambil
                           ? 'Silakan menuju counter & sebutkan ${order.id}'
-                          : 'Perkiraan siap dalam ~${order.estimatedMinutes} menit',
+                          : (status == OrderStatus.menungguPembayaran
+                              ? 'Bayar tunai di kasir: ${order.formattedTotalPrice}'
+                              : 'Perkiraan siap dalam ~${order.estimatedMinutes} menit'),
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: status == OrderStatus.siapDiambil
                             ? const Color(0xFF2E7D32)
-                            : AppColors.darkBrown,
+                            : (status == OrderStatus.menungguPembayaran
+                                ? const Color(0xFFE65100)
+                                : AppColors.darkBrown),
                       ),
                     ),
                   ),
@@ -302,29 +314,40 @@ class OrderLiveStatusHero extends StatelessWidget {
   }
 
   Widget _buildLiveBadge() {
+    final isWaitingPayment = order.status == OrderStatus.menungguPembayaran;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
+        color: isWaitingPayment
+            ? const Color(0xFFFFF8E1)
+            : const Color(0xFFE8F5E9),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFA5D6A7)),
+        border: Border.all(
+          color: isWaitingPayment
+              ? const Color(0xFFFFD54F)
+              : const Color(0xFFA5D6A7),
+        ),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           CircleAvatar(
             radius: 3.5,
-            backgroundColor: Color(0xFF388E3C),
+            backgroundColor: isWaitingPayment
+                ? const Color(0xFFF57C00)
+                : const Color(0xFF388E3C),
           ),
-          SizedBox(width: 5),
+          const SizedBox(width: 5),
           Flexible(
             child: Text(
-              'LIVE TRACKING',
+              isWaitingPayment ? 'MENUNGGU PEMBAYARAN KASIR' : 'LIVE TRACKING',
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2E7D32),
+                color: isWaitingPayment
+                    ? const Color(0xFFE65100)
+                    : const Color(0xFF2E7D32),
                 letterSpacing: 0.6,
               ),
             ),

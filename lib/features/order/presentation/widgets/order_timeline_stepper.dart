@@ -7,11 +7,13 @@ import '../../domain/models/order_model.dart';
 class OrderTimelineStepper extends StatelessWidget {
   final OrderStatus currentStatus;
   final Map<OrderStatus, DateTime> statusTimes;
+  final String? paymentMethod;
 
   const OrderTimelineStepper({
     super.key,
     required this.currentStatus,
     required this.statusTimes,
+    this.paymentMethod,
   });
 
   String _formatTime(DateTime? dt) {
@@ -21,9 +23,32 @@ class OrderTimelineStepper extends StatelessWidget {
     return '$h:$m WIB';
   }
 
+  List<OrderStatus> get _displaySteps {
+    final isCash = (paymentMethod?.toLowerCase().contains('cash') ?? false) ||
+        (paymentMethod?.toLowerCase().contains('tunai') ?? false) ||
+        currentStatus == OrderStatus.menungguPembayaran;
+
+    if (isCash) {
+      return const [
+        OrderStatus.menungguPembayaran,
+        OrderStatus.diproses,
+        OrderStatus.siapDiambil,
+        OrderStatus.selesai,
+      ];
+    } else {
+      return const [
+        OrderStatus.diterima,
+        OrderStatus.diproses,
+        OrderStatus.siapDiambil,
+        OrderStatus.selesai,
+      ];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final steps = OrderStatus.values;
+    final steps = _displaySteps;
+    final currentIndex = steps.indexOf(currentStatus);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -66,8 +91,9 @@ class OrderTimelineStepper extends StatelessWidget {
           const SizedBox(height: 16),
           ...List.generate(steps.length, (index) {
             final step = steps[index];
-            final isCompleted = step.stepIndex < currentStatus.stepIndex;
-            final isCurrent = step.stepIndex == currentStatus.stepIndex;
+            final isCompleted = currentIndex > index ||
+                (currentIndex == -1 && step.stepIndex < currentStatus.stepIndex);
+            final isCurrent = step == currentStatus;
             final isLast = index == steps.length - 1;
             final time = statusTimes[step];
 

@@ -16,6 +16,9 @@ class PaymentSuccessPage extends StatelessWidget {
     final paymentMethod = args?['paymentMethod'] as String? ?? 'QRIS';
     final orderNumber = args?['orderNumber'] as String? ??
         '#BF-${(Random().nextInt(9000) + 1000).toString().padLeft(4, '0')}';
+    final queueNumber = args?['queueNumber'] as String? ?? 'A-01';
+    final isCash = paymentMethod.toLowerCase().contains('cash') ||
+        paymentMethod.toLowerCase().contains('tunai');
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
@@ -31,21 +34,29 @@ class PaymentSuccessPage extends StatelessWidget {
                   children: [
                     const SizedBox(height: 30),
 
-                    // ── Double Check Icon ──
+                    // ── Status Icon ──
                     Container(
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
+                        color: isCash
+                            ? const Color(0xFFFFF8E1)
+                            : const Color(0xFFE8F5E9),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFF4CAF50),
+                          color: isCash
+                              ? const Color(0xFFFFB300)
+                              : const Color(0xFF4CAF50),
                           width: 2.5,
                         ),
                       ),
-                      child: const Icon(
-                        Icons.done_all_rounded,
-                        color: Color(0xFF4CAF50),
+                      child: Icon(
+                        isCash
+                            ? Icons.payments_rounded
+                            : Icons.done_all_rounded,
+                        color: isCash
+                            ? const Color(0xFFE65100)
+                            : const Color(0xFF4CAF50),
                         size: 40,
                       ),
                     ),
@@ -53,9 +64,9 @@ class PaymentSuccessPage extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     // ── Title ──
-                    const Text(
-                      'Pembayaran Berhasil!',
-                      style: TextStyle(
+                    Text(
+                      isCash ? 'Pesanan Terbuat!' : 'Pembayaran Berhasil!',
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: AppColors.darkText,
@@ -66,10 +77,12 @@ class PaymentSuccessPage extends StatelessWidget {
                     const SizedBox(height: 8),
 
                     // ── Subtitle ──
-                    const Text(
-                      'Pesananmu sudah diteruskan ke barista dapur\nBreakFree.',
+                    Text(
+                      isCash
+                          ? 'Silakan tunjukkan nomor antrean dan lakukan pembayaran tunai di kasir agar pesanan segera diracik.'
+                          : 'Pesananmu sudah diteruskan ke barista dapur\nBreakFree.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.secondaryText,
                         height: 1.5,
@@ -91,6 +104,20 @@ class PaymentSuccessPage extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
+                          // Row: Nomor Antrean
+                          _InfoRow(
+                            label: 'Nomor Antrean',
+                            value: queueNumber,
+                            valueBold: true,
+                            valueColor: AppColors.darkBrown,
+                          ),
+
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: AppColors.inputBorderColor,
+                          ),
+
                           // Row: Nomor Pesanan
                           _InfoRow(
                             label: 'Nomor Pesanan',
@@ -106,27 +133,32 @@ class PaymentSuccessPage extends StatelessWidget {
                             color: AppColors.inputBorderColor,
                           ),
 
-                          // Row: Estimasi Tunggu
-                          const _InfoRow(
-                            label: 'Estimasi Tunggu',
-                            value: '8 – 12 Menit',
+                          // Row: Metode Bayar
+                          _InfoRow(
+                            label: 'Metode Bayar',
+                            value: isCash
+                                ? 'Cash (Tunai di Kasir)'
+                                : 'QRIS Resmi (Break Free)',
                             valueBold: true,
                             valueColor: AppColors.darkText,
                           ),
 
-                          // Divider
                           Divider(
                             height: 1,
                             thickness: 1,
                             color: AppColors.inputBorderColor,
                           ),
 
-                          // Row: Metode Bayar
+                          // Row: Status Pesanan
                           _InfoRow(
-                            label: 'Metode Bayar',
-                            value: '$paymentMethod (GoPay)',
+                            label: 'Status',
+                            value: isCash
+                                ? 'Menunggu Pembayaran'
+                                : 'Diterima Dapur',
                             valueBold: true,
-                            valueColor: AppColors.darkText,
+                            valueColor: isCash
+                                ? const Color(0xFFE65100)
+                                : const Color(0xFF2E7D32),
                           ),
                         ],
                       ),
