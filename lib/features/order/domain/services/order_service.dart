@@ -171,7 +171,10 @@ class OrderService extends ChangeNotifier {
     notifyListeners();
 
     // Kirim pesanan ke backend terpadu secara asinkron
+    // Pesanan ini otomatis masuk ke antrean dapur Web POS kasir!
     ApiService.instance.checkoutOrder({
+      'orderId': newOrder.id,
+      'queueNumber': newOrder.queueNumber,
       'items': items.map((it) => {
         'id': it.id,
         'name': it.name,
@@ -184,11 +187,88 @@ class OrderService extends ChangeNotifier {
       'paymentMethod': paymentMethod,
       'promoCode': promoCode,
       'totalPrice': totalPrice,
+    }).then((res) {
+      if (res['success'] == true) {
+        debugPrint('Pesanan berhasil disinkronkan ke Web POS & Dapur!');
+      }
     }).catchError((e) {
       debugPrint('Checkout backend sync error: $e');
     });
 
     return newOrder;
+  }
+
+  /// Sinkronisasi status Live Tracking secara real-time dari database backend Express
+  /// yang diupdate oleh kasir melalui Web POS.
+  Future<void> syncActiveOrderFromBackend() async {
+    try {
+      final res = await ApiService.instance.getActiveOrder();
+      if (res['success'] == true && res['activeOrder'] != null) {
+        final data = res['activeOrder'];
+        final rawStatus = data['status']?.toString().toLowerCase().trim() ?? 'diterima';
+
+        OrderStatus status = OrderStatus.diterima;
+        if (rawStatus == 'diproses') {
+          status = OrderStatus.diproses;
+        } else if (rawStatus == 'siapdiambil' || rawStatus == 'siap diambil' || rawStatus == 'siap') {
+          status = OrderStatus.siapDiambil;
+        } else if (rawStatus == 'selesai') {
+          status = OrderStatus.selesai;
+        }
+
+        final now = DateTime.now();
+        final updatedTimes = <OrderStatus, DateTime>{
+          OrderStatus.diterima: now.subtract(const Duration(minutes: 6)),
+        };
+        if (status == OrderStatus.diproses || status == OrderStatus.siapDiambil || status == OrderStatus.selesai) {
+          updatedTimes[OrderStatus.diproses] = now.subtract(const Duration(minutes: 3));
+        }
+        if (status == OrderStatus.siapDiambil || status == OrderStatus.selesai) {
+          updatedTimes[OrderStatus.siapDiambil] = now.subtract(const Duration(minutes: 1));
+        }
+        if (status == OrderStatus.selesai) {
+          updatedTimes[OrderStatus.selesai] = now;
+        }
+
+        List<CartItemModel> items = [];
+        if (data['items'] != null && data['items'] is List) {
+          items = (data['items'] as List).map((it) => CartItemModel(
+            id: it['id']?.toString() ?? 'item',
+            name: it['name']?.toString() ?? 'Kopi BreakFree',
+            options: it['options']?.toString() ?? 'Regular',
+            price: (it['price'] as num?)?.toInt() ?? 18000,
+            quantity: (it['quantity'] as num?)?.toInt() ?? 1,
+            image: (it['image'] != null && it['image'].toString().isNotEmpty)
+                ? it['image'].toString()
+                : AppAssets.breakfreeArenLatte,
+          )).toList();
+        }
+
+        final updatedOrder = OrderModel(
+          id: data['id']?.toString() ?? _activeOrder?.id ?? '#BF-2849',
+          queueNumber: data['queueNumber']?.toString() ?? _activeOrder?.queueNumber ?? 'A-14',
+          counterName: data['counterName']?.toString() ?? 'Counter Bar 01',
+          pickupType: data['pickupType']?.toString() ?? 'Dine-in (Minum di Kafe)',
+          createdAt: data['createdAt'] != null
+              ? DateTime.tryParse(data['createdAt'].toString()) ?? now
+              : now,
+          status: status,
+          estimatedMinutes: (data['estimatedMinutes'] as num?)?.toInt() ?? 5,
+          baristaName: data['baristaName']?.toString() ?? 'Barista Reza',
+          baristaNote: data['baristaNote']?.toString() ?? 'Barista sedang meracik pesanan.',
+          totalPrice: (data['totalPrice'] as num?)?.toInt() ?? (_activeOrder?.totalPrice ?? 42000),
+          paymentMethod: data['paymentMethod']?.toString() ?? 'QRIS',
+          promoCode: data['promoCode']?.toString(),
+          statusTimes: updatedTimes,
+          items: items.isNotEmpty ? items : (_activeOrder?.items ?? []),
+        );
+
+        _activeOrder = updatedOrder;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('OrderService syncActiveOrderFromBackend error: $e');
+    }
   }
 
   /// Manually advances the status of the active order (for live demo / test).

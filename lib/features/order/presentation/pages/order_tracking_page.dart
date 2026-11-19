@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/routes/app_routes.dart';
@@ -24,11 +25,29 @@ class OrderTrackingPage extends StatefulWidget {
 
 class _OrderTrackingPageState extends State<OrderTrackingPage> {
   late int _selectedTab;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _selectedTab = widget.initialTabIndex;
+
+    // Sinkronisasi status pesanan dari backend MySQL secara langsung
+    OrderService.instance.syncActiveOrderFromBackend();
+
+    // Auto-polling status pesanan setiap 3 detik
+    // Agar status yang diubah kasir di Web POS langsung ter-update di layar pelanggan
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) {
+        OrderService.instance.syncActiveOrderFromBackend();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
   }
 
   void _onBack() {
@@ -138,6 +157,24 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
             ),
             centerTitle: true,
             actions: [
+              IconButton(
+                tooltip: 'Sinkronkan Status',
+                icon: const Icon(
+                  Icons.sync_rounded,
+                  color: AppColors.primaryBrown,
+                  size: 20,
+                ),
+                onPressed: () {
+                  OrderService.instance.syncActiveOrderFromBackend();
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Menyinkronkan status pesanan dari kasir Web POS...'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                },
+              ),
               IconButton(
                 tooltip: 'Tanya Barista AI',
                 icon: const Icon(
@@ -326,9 +363,13 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
-      child: Column(
+    return RefreshIndicator(
+      onRefresh: () => OrderService.instance.syncActiveOrderFromBackend(),
+      color: AppColors.primaryBrown,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1. Live Hero Status Card
@@ -402,7 +443,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildHistoryView(List<OrderModel> history) {
