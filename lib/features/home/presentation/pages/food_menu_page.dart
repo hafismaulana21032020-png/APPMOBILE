@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../cart/domain/services/cart_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
+import '../../domain/services/menu_service.dart';
 import '../widgets/floating_cart_bar.dart';
 import '../widgets/home_bottom_nav_bar.dart';
 import '../widgets/home_nav_helper.dart';
@@ -23,25 +24,44 @@ class FoodMenuPage extends StatefulWidget {
 class _FoodMenuPageState extends State<FoodMenuPage> {
   String _selectedSubcategory = 'Semua';
 
-  ProductModel? get _indomieGorengProduct => breakfreeMenuItems
-      .cast<ProductModel?>()
-      .firstWhere((p) => p?.id == 'm-ig-1', orElse: () => null);
+  @override
+  void initState() {
+    super.initState();
+    MenuService.instance.fetchMenu(force: true);
+  }
 
-  ProductModel? get _indomieNyemekProduct => breakfreeMenuItems
-      .cast<ProductModel?>()
-      .firstWhere((p) => p?.id == 'm-in-1', orElse: () => null);
+  ProductModel? get _indomieGorengProduct {
+    final p = breakfreeMenuItems
+        .cast<ProductModel?>()
+        .firstWhere((p) => p?.id == 'm-ig-1', orElse: () => null);
+    return p != null ? MenuService.instance.resolveProduct(p) : null;
+  }
+
+  ProductModel? get _indomieNyemekProduct {
+    final p = breakfreeMenuItems
+        .cast<ProductModel?>()
+        .firstWhere((p) => p?.id == 'm-in-1', orElse: () => null);
+    return p != null ? MenuService.instance.resolveProduct(p) : null;
+  }
 
   List<ProductModel> get _paketHematProducts => breakfreeMenuItems
       .where((p) => p.category == 'Makanan' && p.subcategory == 'Paket')
+      .map((p) => MenuService.instance.resolveProduct(p))
       .toList();
 
-  ProductModel? get _addonTelur => breakfreeMenuItems
-      .cast<ProductModel?>()
-      .firstWhere((p) => p?.id == 'm-addon-1', orElse: () => null);
+  ProductModel? get _addonTelur {
+    final p = breakfreeMenuItems
+        .cast<ProductModel?>()
+        .firstWhere((p) => p?.id == 'm-addon-1', orElse: () => null);
+    return p != null ? MenuService.instance.resolveProduct(p) : null;
+  }
 
-  ProductModel? get _addonNasi => breakfreeMenuItems
-      .cast<ProductModel?>()
-      .firstWhere((p) => p?.id == 'm-addon-2', orElse: () => null);
+  ProductModel? get _addonNasi {
+    final p = breakfreeMenuItems
+        .cast<ProductModel?>()
+        .firstWhere((p) => p?.id == 'm-addon-2', orElse: () => null);
+    return p != null ? MenuService.instance.resolveProduct(p) : null;
+  }
 
   void _onAddToCart(ProductModel product, [String? extra, int? customPrice]) {
     ProductOrderBottomSheet.show(
@@ -103,13 +123,17 @@ class _FoodMenuPageState extends State<FoodMenuPage> {
     required String title,
     required String price,
     required VoidCallback onAdd,
+    bool isAvailable = true,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isAvailable ? Colors.white : const Color(0xFFECEAE5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
+        border: Border.all(
+          color: isAvailable ? AppColors.inputBorderColor : const Color(0xFFD6D1C7),
+          width: 1.0,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,27 +145,35 @@ class _FoodMenuPageState extends State<FoodMenuPage> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7F5F2),
+                  color: isAvailable ? const Color(0xFFF7F5F2) : const Color(0xFFE2DDD5),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Center(
-                  child: Icon(Icons.add, size: 16, color: AppColors.darkBrown),
+                child: Center(
+                  child: Icon(
+                    Icons.add,
+                    size: 16,
+                    color: isAvailable ? AppColors.darkBrown : const Color(0xFF8C827A),
+                  ),
                 ),
               ),
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: onAdd,
+                  onTap: isAvailable ? onAdd : null,
                   borderRadius: BorderRadius.circular(8),
                   child: Ink(
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryBrown,
+                      color: isAvailable ? AppColors.primaryBrown : const Color(0xFFDDD8CE),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.add, size: 16, color: Colors.white),
+                    child: Center(
+                      child: Icon(
+                        isAvailable ? Icons.add : Icons.close_rounded,
+                        size: 16,
+                        color: isAvailable ? Colors.white : const Color(0xFF7A726A),
+                      ),
                     ),
                   ),
                 ),
@@ -149,25 +181,50 @@ class _FoodMenuPageState extends State<FoodMenuPage> {
             ],
           ),
           const SizedBox(height: 14),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.bold,
-              color: AppColors.darkText,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: isAvailable ? AppColors.darkText : const Color(0xFF8C827A),
+                  ),
+                ),
+              ),
+              if (!isAvailable) ...[
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEBEE),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: const Color(0xFFFFCDD2)),
+                  ),
+                  child: const Text(
+                    'Habis',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFC62828),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 2),
           Text(
             price,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.bold,
-              color: AppColors.darkBrown,
+              color: isAvailable ? AppColors.darkBrown : const Color(0xFF8C827A),
             ),
           ),
         ],
@@ -186,7 +243,7 @@ class _FoodMenuPageState extends State<FoodMenuPage> {
     final showAddons = _selectedSubcategory == 'Semua';
 
     return AnimatedBuilder(
-      animation: CartService.instance,
+      animation: Listenable.merge([CartService.instance, MenuService.instance]),
       builder: (context, _) {
         final cartCount = CartService.instance.totalItemCount;
         final cartSubtotal = CartService.instance.subtotal;
@@ -375,6 +432,7 @@ class _FoodMenuPageState extends State<FoodMenuPage> {
                       child: _buildAddonCard(
                         title: _addonTelur?.name ?? 'Telur',
                         price: _addonTelur?.formattedPrice ?? 'Rp 3.000',
+                        isAvailable: _addonTelur?.isAvailable ?? true,
                         onAdd: () {
                           if (_addonTelur != null) {
                             _onAddToCart(_addonTelur!);
@@ -387,6 +445,7 @@ class _FoodMenuPageState extends State<FoodMenuPage> {
                       child: _buildAddonCard(
                         title: _addonNasi?.name ?? 'Nasi',
                         price: _addonNasi?.formattedPrice ?? 'Rp 5.000',
+                        isAvailable: _addonNasi?.isAvailable ?? true,
                         onAdd: () {
                           if (_addonNasi != null) {
                             _onAddToCart(_addonNasi!);

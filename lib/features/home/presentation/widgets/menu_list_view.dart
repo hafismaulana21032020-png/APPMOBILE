@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
+import '../../domain/services/menu_service.dart';
 import 'product_order_bottom_sheet.dart';
 
 class MenuTabContent extends StatefulWidget {
@@ -45,6 +46,7 @@ class _MenuTabContentState extends State<MenuTabContent> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory;
+    MenuService.instance.fetchMenu();
   }
 
   @override
@@ -71,6 +73,7 @@ class _MenuTabContentState extends State<MenuTabContent> {
             orElse: () => breakfreeMenuItems.first,
           ),
         )
+        .map((item) => MenuService.instance.resolveProduct(item))
         .toList();
   }
 
@@ -83,7 +86,7 @@ class _MenuTabContentState extends State<MenuTabContent> {
           product.name.toLowerCase().contains(query) ||
           product.description.toLowerCase().contains(query);
       return matchesCategory && matchesQuery;
-    }).toList();
+    }).map((item) => MenuService.instance.resolveProduct(item)).toList();
   }
 
   String? _detailRouteForCategory(String category) {
@@ -102,22 +105,36 @@ class _MenuTabContentState extends State<MenuTabContent> {
   }
 
   void _showProductDetailSheet(ProductModel product) {
+    if (!product.isAvailable) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Maaf, ${product.name} saat ini sedang habis (sold out).'),
+          backgroundColor: const Color(0xFFC93B2B),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     ProductOrderBottomSheet.show(context, product);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isAllDefaultView =
-        _selectedCategory == 'Semua' && _searchQuery.trim().isEmpty;
-    final filtered = _filteredItems;
-    final detailRoute = _detailRouteForCategory(_selectedCategory);
+    return AnimatedBuilder(
+      animation: MenuService.instance,
+      builder: (context, _) {
+        final isAllDefaultView =
+            _selectedCategory == 'Semua' && _searchQuery.trim().isEmpty;
+        final filtered = _filteredItems;
+        final detailRoute = _detailRouteForCategory(_selectedCategory);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimensions.lg,
-        vertical: AppDimensions.md,
-      ),
-      child: Column(
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimensions.lg,
+            vertical: AppDimensions.md,
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
@@ -296,6 +313,7 @@ class _MenuTabContentState extends State<MenuTabContent> {
                   const SizedBox(height: 10),
                   ...breakfreeMenuItems
                       .where((item) => !_bestSellerIds.contains(item.id))
+                      .map((p) => MenuService.instance.resolveProduct(p))
                       .map(
                         (product) => Padding(
                           padding: const EdgeInsets.only(bottom: 10),
@@ -370,6 +388,8 @@ class _MenuTabContentState extends State<MenuTabContent> {
         ],
       ),
     );
+      },
+    );
   }
 }
 
@@ -384,6 +404,7 @@ class _MenuCatalogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAvailable = product.isAvailable;
     final displayTitle =
         product.tag != null ? '${product.name} (${product.tag})' : product.name;
 
@@ -392,69 +413,130 @@ class _MenuCatalogCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 64,
-                  height: 64,
-                  child: Image.asset(
-                    product.image.isNotEmpty
-                        ? product.image
-                        : AppAssets.breakfreeArenLatte,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: AppColors.cardBgColor,
-                      child: const Center(
-                        child: Icon(
-                          Icons.coffee_rounded,
-                          size: 26,
-                          color: AppColors.primaryBrown,
+        child: Opacity(
+          opacity: isAvailable ? 1.0 : 0.65,
+          child: Ink(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isAvailable ? Colors.white : const Color(0xFFECEAE5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isAvailable ? AppColors.inputBorderColor : const Color(0xFFD6D1C7),
+                width: 1.0,
+              ),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 64,
+                    height: 64,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ColorFiltered(
+                          colorFilter: isAvailable
+                              ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
+                              : const ColorFilter.mode(Colors.grey, BlendMode.saturation),
+                          child: Image.asset(
+                            product.image.isNotEmpty
+                                ? product.image
+                                : AppAssets.breakfreeArenLatte,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: AppColors.cardBgColor,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.coffee_rounded,
+                                  size: 26,
+                                  color: AppColors.primaryBrown,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        if (!isAvailable)
+                          Container(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFC93B2B),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'SOLD OUT',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      displayTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkText,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.bold,
+                          color: isAvailable ? AppColors.darkText : const Color(0xFF8C827A),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product.formattedPrice,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.secondaryText,
-                        fontWeight: FontWeight.w500,
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            product.formattedPrice,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: isAvailable ? AppColors.secondaryText : const Color(0xFF8C827A),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (!isAvailable) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFEBEE),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFFFFCDD2)),
+                              ),
+                              child: const Text(
+                                'Sold Out',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFC62828),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

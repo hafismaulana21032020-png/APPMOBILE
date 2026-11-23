@@ -9,6 +9,8 @@ import '../../../order/domain/services/order_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
 import '../../domain/services/pickup_mode_service.dart';
+import '../../domain/services/menu_service.dart';
+import '../../domain/services/promo_service.dart';
 import '../controllers/home_tab_controller.dart';
 import '../widgets/ai_assistant_sheet.dart';
 import '../widgets/floating_cart_bar.dart';
@@ -48,6 +50,14 @@ class _HomePageState extends State<HomePage> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    // Sinkronisasi menu sold out & voucher aktif dari backend Express & MySQL
+    MenuService.instance.fetchMenu();
+    PromoService.instance.fetchActivePromos();
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -59,7 +69,7 @@ class _HomePageState extends State<HomePage> {
     return breakfreeMenuItems.where((product) {
       return product.name.toLowerCase().contains(query) ||
           product.description.toLowerCase().contains(query);
-    }).toList();
+    }).map((product) => MenuService.instance.resolveProduct(product)).toList();
   }
 
   void _onAddToCart(ProductModel product) {
@@ -68,16 +78,17 @@ class _HomePageState extends State<HomePage> {
 
   void _onToggleVoucher() {
     final cartService = CartService.instance;
-    final isAlreadyApplied = cartService.appliedPromoCode == 'BREAK20';
-    cartService.applyPromoCode(isAlreadyApplied ? null : 'BREAK20');
+    final activePromoCode = PromoService.instance.primaryPromo?.code ?? 'BREAK20';
+    final isAlreadyApplied = cartService.appliedPromoCode == activePromoCode;
+    cartService.applyPromoCode(isAlreadyApplied ? null : activePromoCode);
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           isAlreadyApplied
-              ? 'Voucher BREAK20 dilepas'
-              : 'Voucher BREAK20 diterapkan! Berlaku di keranjang.',
+              ? 'Voucher $activePromoCode dilepas'
+              : 'Voucher $activePromoCode diterapkan! Berlaku di keranjang.',
         ),
         backgroundColor: AppColors.primaryBrown,
         duration: const Duration(seconds: 2),
@@ -263,6 +274,7 @@ class _HomePageState extends State<HomePage> {
                       HomePromoPackagesSlider(
                         isVoucherApplied: isVoucherApplied,
                         onToggleVoucher: _onToggleVoucher,
+                        isBundleAvailable: !MenuService.instance.isSoldOut('ic-2', 'Ice Kopi Susu'),
                         onBundleTap: () => _onAddToCart(_bundleIceKopiSusu),
                       ),
                       const SizedBox(height: 20),
@@ -290,6 +302,7 @@ class _HomePageState extends State<HomePage> {
         HomeTabController.instance,
         OrderService.instance,
         PickupModeService.instance,
+        MenuService.instance,
       ]),
       builder: (context, _) {
         final cartCount = CartService.instance.totalItemCount;

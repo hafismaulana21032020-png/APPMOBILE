@@ -7,12 +7,14 @@ class CartItemCard extends StatelessWidget {
   final CartItemModel item;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
+  final bool isUnavailable;
 
   const CartItemCard({
     super.key,
     required this.item,
     required this.onIncrement,
     required this.onDecrement,
+    this.isUnavailable = false,
   });
 
   @override
@@ -20,10 +22,10 @@ class CartItemCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isUnavailable ? const Color(0xFFFFF8F8) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.inputBorderColor,
+          color: isUnavailable ? const Color(0xFFEF9A9A) : AppColors.inputBorderColor,
           width: 1.0,
         ),
       ),
@@ -36,21 +38,46 @@ class CartItemCard extends StatelessWidget {
             child: SizedBox(
               width: 68,
               height: 68,
-              child: Image.asset(
-                item.image,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: AppColors.cardBgColor,
-                  child: Center(
-                    child: Icon(
-                      item.name.toLowerCase().contains('croissant')
-                          ? Icons.bakery_dining_rounded
-                          : Icons.coffee_rounded,
-                      size: 28,
-                      color: AppColors.primaryBrown,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ColorFiltered(
+                    colorFilter: isUnavailable
+                        ? const ColorFilter.mode(Colors.grey, BlendMode.saturation)
+                        : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+                    child: Image.asset(
+                      item.image,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppColors.cardBgColor,
+                        child: Center(
+                          child: Icon(
+                            item.name.toLowerCase().contains('croissant')
+                                ? Icons.bakery_dining_rounded
+                                : Icons.coffee_rounded,
+                            size: 28,
+                            color: AppColors.primaryBrown,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (isUnavailable)
+                    Container(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      child: const Center(
+                        child: Text(
+                          'HABIS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -62,16 +89,41 @@ class CartItemCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  item.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkText,
-                    letterSpacing: -0.2,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isUnavailable ? const Color(0xFFC62828) : AppColors.darkText,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                    if (isUnavailable) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFFFFCDD2)),
+                        ),
+                        child: const Text(
+                          'Sold Out',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFC62828),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -136,15 +188,15 @@ class CartItemCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
 
-                // Tombol Tambah (+) - Bulatan Cokelat
+                // Tombol Tambah (+) - Bulatan Cokelat (dinonaktifkan jika habis)
                 GestureDetector(
-                  onTap: onIncrement,
+                  onTap: isUnavailable ? null : onIncrement,
                   behavior: HitTestBehavior.opaque,
                   child: Container(
                     width: 24,
                     height: 24,
-                    decoration: const BoxDecoration(
-                      color: AppColors.darkBrown,
+                    decoration: BoxDecoration(
+                      color: isUnavailable ? Colors.grey.shade400 : AppColors.darkBrown,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -162,4 +214,3 @@ class CartItemCard extends StatelessWidget {
     );
   }
 }
-

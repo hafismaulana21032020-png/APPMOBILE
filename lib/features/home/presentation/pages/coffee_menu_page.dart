@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../cart/domain/services/cart_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
+import '../../domain/services/menu_service.dart';
 import '../widgets/coffee_list_item_card.dart';
 import '../widgets/floating_cart_bar.dart';
 import '../widgets/home_bottom_nav_bar.dart';
@@ -22,19 +23,28 @@ class CoffeeMenuPage extends StatefulWidget {
 class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
   String? _selectedSubcategory;
 
+  @override
+  void initState() {
+    super.initState();
+    MenuService.instance.fetchMenu(force: true);
+  }
+
   List<ProductModel> get _hotCoffeeProducts => breakfreeMenuItems
       .where((p) =>
           p.category.toLowerCase() == 'kopi' && p.subcategory == 'Hot Coffee')
+      .map((p) => MenuService.instance.resolveProduct(p))
       .toList();
 
   List<ProductModel> get _iceCoffeeProducts => breakfreeMenuItems
       .where((p) =>
           p.category.toLowerCase() == 'kopi' && p.subcategory == 'Ice Coffee')
+      .map((p) => MenuService.instance.resolveProduct(p))
       .toList();
 
   List<ProductModel> get _iceCubeProducts => breakfreeMenuItems
       .where((p) =>
           p.category.toLowerCase() == 'kopi' && p.subcategory == 'Ice Cube')
+      .map((p) => MenuService.instance.resolveProduct(p))
       .toList();
 
   void _onAddToCart(ProductModel product) {
@@ -52,7 +62,7 @@ class _CoffeeMenuPageState extends State<CoffeeMenuPage> {
     final showCube = _selectedSubcategory == null || _selectedSubcategory == 'Ice Cube';
 
     return AnimatedBuilder(
-      animation: CartService.instance,
+      animation: Listenable.merge([CartService.instance, MenuService.instance]),
       builder: (context, _) {
         final cartCount = CartService.instance.totalItemCount;
         final cartSubtotal = CartService.instance.subtotal;

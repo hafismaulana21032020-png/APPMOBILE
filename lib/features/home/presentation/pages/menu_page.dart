@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cart/domain/services/cart_service.dart';
+import '../../domain/services/menu_service.dart';
 import '../widgets/floating_cart_bar.dart';
 import '../widgets/home_bottom_nav_bar.dart';
 import '../widgets/home_nav_helper.dart';
@@ -15,7 +16,7 @@ class MenuPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: CartService.instance,
+      animation: Listenable.merge([CartService.instance, MenuService.instance]),
       builder: (context, _) {
         final cartCount = CartService.instance.totalItemCount;
         final cartSubtotal = CartService.instance.subtotal;

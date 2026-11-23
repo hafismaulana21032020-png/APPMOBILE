@@ -98,10 +98,15 @@ class OrderService extends ChangeNotifier {
           notifyListeners();
         }
       } else {
-        debugPrint('Checkout backend status: ${res['message']}');
+        final errorMsg = res['message']?.toString() ?? 'Gagal membuat pesanan di backend.';
+        debugPrint('Checkout backend status: $errorMsg');
+        _activeOrder = null;
+        notifyListeners();
+        throw Exception(errorMsg);
       }
     } catch (e) {
       debugPrint('Checkout backend sync error: $e');
+      rethrow;
     }
 
     return newOrder;

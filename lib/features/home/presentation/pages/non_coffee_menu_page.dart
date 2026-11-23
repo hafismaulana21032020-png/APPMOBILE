@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../cart/domain/services/cart_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
+import '../../domain/services/menu_service.dart';
 import '../widgets/floating_cart_bar.dart';
 import '../widgets/home_bottom_nav_bar.dart';
 import '../widgets/home_nav_helper.dart';
@@ -22,16 +23,25 @@ class NonCoffeeMenuPage extends StatefulWidget {
 class _NonCoffeeMenuPageState extends State<NonCoffeeMenuPage> {
   String _selectedSubcategory = 'Semua';
 
+  @override
+  void initState() {
+    super.initState();
+    MenuService.instance.fetchMenu(force: true);
+  }
+
   List<ProductModel> get _coklatProducts => breakfreeMenuItems
       .where((p) => p.category == 'Non-Kopi' && p.subcategory == 'Coklat')
+      .map((p) => MenuService.instance.resolveProduct(p))
       .toList();
 
   List<ProductModel> get _tehBuahProducts => breakfreeMenuItems
       .where((p) => p.category == 'Non-Kopi' && p.subcategory == 'Teh & Buah')
+      .map((p) => MenuService.instance.resolveProduct(p))
       .toList();
 
   List<ProductModel> get _signatureProducts => breakfreeMenuItems
       .where((p) => p.category == 'Non-Kopi' && p.subcategory == 'Signature')
+      .map((p) => MenuService.instance.resolveProduct(p))
       .toList();
 
   void _onAddToCart(ProductModel product) {
@@ -96,7 +106,7 @@ class _NonCoffeeMenuPageState extends State<NonCoffeeMenuPage> {
         _selectedSubcategory == 'Semua' || _selectedSubcategory == 'Signature';
 
     return AnimatedBuilder(
-      animation: CartService.instance,
+      animation: Listenable.merge([CartService.instance, MenuService.instance]),
       builder: (context, _) {
         final cartCount = CartService.instance.totalItemCount;
         final cartSubtotal = CartService.instance.subtotal;

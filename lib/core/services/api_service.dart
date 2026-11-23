@@ -144,6 +144,10 @@ class ApiService {
   // 4. PROMO / VOUCHER CHECKOUT
   // ===========================================================================
 
+  Future<Map<String, dynamic>> getActivePromos() async {
+    return _get('/promos/active');
+  }
+
   Future<Map<String, dynamic>> validatePromo({
     required String code,
     required int subtotal,

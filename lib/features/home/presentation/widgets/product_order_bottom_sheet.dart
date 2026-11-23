@@ -150,6 +150,18 @@ class ProductOrderBottomSheet {
     ProductModel product, {
     String? initialOption,
   }) {
+    if (!product.isAvailable) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Maaf, ${product.name} saat ini sedang habis (sold out).'),
+          backgroundColor: const Color(0xFFC93B2B),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     int quantity = 1;
     final noteController = TextEditingController();
     final optionGroup = _getProductOptionGroup(product);

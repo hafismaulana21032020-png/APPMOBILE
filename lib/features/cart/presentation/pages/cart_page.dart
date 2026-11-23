@@ -9,6 +9,8 @@ import '../../domain/services/cart_service.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../account/domain/services/user_service.dart';
 import '../../../home/domain/services/pickup_mode_service.dart';
+import '../../../home/domain/services/menu_service.dart';
+import '../../../home/domain/services/promo_service.dart';
 import '../../../order/domain/services/order_service.dart';
 import '../widgets/cart_item_card.dart';
 
@@ -27,7 +29,11 @@ class _CartPageState extends State<CartPage> {
   // Promo terpasang
   bool _isPromoApplied = false;
   String? _appliedCode;
+  int? _validatedDiscountAmount;
   final double _discountPercent = 0.20;
+
+  bool get _hasUnavailableItem =>
+      _cartItems.any((item) => MenuService.instance.isSoldOut(item.id, item.name));
 
   // Metode Pembayaran Terpilih (Hanya QRIS & Cash)
   String _selectedPaymentMethod = 'QRIS';
@@ -59,6 +65,7 @@ class _CartPageState extends State<CartPage> {
 
   int get _discountAmount {
     if (!_isPromoApplied) return 0;
+    if (_validatedDiscountAmount != null) return _validatedDiscountAmount!;
     if (_appliedCode == 'BREAK20') {
       if (_subtotal < 30000) return 0;
       final discount = (_subtotal * _discountPercent).round();
@@ -140,34 +147,17 @@ class _CartPageState extends State<CartPage> {
     }
   }
 
-  void _applyPromo() {
+  void _applyPromo() async {
     final rawCode = _promoController.text.trim().toUpperCase();
     final normalizedCode = rawCode
         .replaceFirst(RegExp(r'^KODE\s*PROMO\s*:\s*'), '')
         .trim();
 
-    if (normalizedCode == 'KOPIKAMPUS' || normalizedCode == 'BREAK20') {
-      setState(() {
-        _isPromoApplied = true;
-        _appliedCode = normalizedCode;
-      });
-      CartService.instance.applyPromoCode(normalizedCode);
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            normalizedCode == 'BREAK20'
-                ? 'Voucher BREAK20 berhasil diterapkan! (Diskon 20%, maks. Rp 10.000)'
-                : 'Promo KOPIKAMPUS berhasil diterapkan! (Diskon 20%)',
-          ),
-          backgroundColor: const Color(0xFF2E7D32),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } else if (normalizedCode.isEmpty) {
+    if (normalizedCode.isEmpty) {
       setState(() {
         _isPromoApplied = false;
         _appliedCode = null;
+        _validatedDiscountAmount = null;
       });
       CartService.instance.applyPromoCode(null);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -178,20 +168,79 @@ class _CartPageState extends State<CartPage> {
           duration: Duration(seconds: 2),
         ),
       );
-    } else {
+      return;
+    }
+
+    // Validasi langsung ke backend Express (tabel MySQL discounts)
+    final res = await PromoService.instance.validateCode(normalizedCode, _subtotal);
+    if (!mounted) return;
+
+    if (res['valid'] == true) {
+      final discountAmt = res['discountAmount'] is num
+          ? (res['discountAmount'] as num).toInt()
+          : null;
+      setState(() {
+        _isPromoApplied = true;
+        _appliedCode = normalizedCode;
+        _validatedDiscountAmount = discountAmt;
+      });
+      CartService.instance.applyPromoCode(normalizedCode);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kode promo tidak valid'),
-          backgroundColor: Colors.redAccent,
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(
+            res['message']?.toString() ??
+                'Voucher $normalizedCode berhasil diterapkan!',
+          ),
+          backgroundColor: const Color(0xFF2E7D32),
+          duration: const Duration(seconds: 2),
         ),
       );
+    } else {
+      // Fallback lokal jika offline
+      if (normalizedCode == 'BREAK20' && _subtotal >= 30000) {
+        setState(() {
+          _isPromoApplied = true;
+          _appliedCode = normalizedCode;
+          _validatedDiscountAmount = null;
+        });
+        CartService.instance.applyPromoCode(normalizedCode);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Voucher BREAK20 berhasil diterapkan! (Diskon 20%, maks. Rp 10.000)'),
+            backgroundColor: Color(0xFF2E7D32),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              res['message']?.toString() ??
+                  'Kode promo tidak valid atau syarat belanja belum terpenuhi.',
+            ),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
   void _onCheckout() {
     if (_cartItems.isEmpty) return;
+    if (_hasUnavailableItem) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Terdapat menu yang sedang habis. Hapus menu tersebut sebelum checkout.'),
+          backgroundColor: Color(0xFFC93B2B),
+        ),
+      );
+      return;
+    }
     if (_selectedPaymentMethod == 'QRIS') {
       _showQrisBottomSheet();
     } else {
@@ -472,53 +521,65 @@ class _CartPageState extends State<CartPage> {
         : 'Dine-in (Minum di Kafe)';
 
     // Buat live order di OrderService dan sinkronkan ke backend Web POS
-    final newOrder = await OrderService.instance.createOrderFromCart(
-      items: cartItems,
-      paymentMethod: paymentMethod,
-      totalPrice: total,
-      promoCode: promoCode,
-      pickupType: pickupType,
-      usePoints: _usePoints,
-    );
+    try {
+      final newOrder = await OrderService.instance.createOrderFromCart(
+        items: cartItems,
+        paymentMethod: paymentMethod,
+        totalPrice: total,
+        promoCode: promoCode,
+        pickupType: pickupType,
+        usePoints: _usePoints,
+      );
 
-    final pointsData = newOrder.points;
-    if (pointsData != null && pointsData['currentBalance'] != null) {
-      UserService.instance.setPoints(pointsData['currentBalance']);
-    } else {
-      // Fallback lokal jika respon backend tanpa payload points
-      if (_usePoints && _pointsToUse > 0) {
-        UserService.instance.deductPoints(_pointsToUse);
+      final pointsData = newOrder.points;
+      if (pointsData != null && pointsData['currentBalance'] != null) {
+        UserService.instance.setPoints(pointsData['currentBalance']);
+      } else {
+        // Fallback lokal jika respon backend tanpa payload points
+        if (_usePoints && _pointsToUse > 0) {
+          UserService.instance.deductPoints(_pointsToUse);
+        }
+        final isCash = paymentMethod.toLowerCase().contains('cash') || paymentMethod.toLowerCase().contains('tunai');
+        if (!isCash && _earnedCashbackPoints > 0) {
+          UserService.instance.addPoints(_earnedCashbackPoints);
+        }
       }
-      final isCash = paymentMethod.toLowerCase().contains('cash') || paymentMethod.toLowerCase().contains('tunai');
-      if (!isCash && _earnedCashbackPoints > 0) {
-        UserService.instance.addPoints(_earnedCashbackPoints);
-      }
-    }
 
-    // Bersihkan keranjang
-    CartService.instance.clear();
+      // Bersihkan keranjang
+      CartService.instance.clear();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    // Navigate ke halaman pembayaran berhasil
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.paymentSuccess,
-      (route) => false,
-      arguments: {
-        'orderNumber': newOrder.id,
-        'queueNumber': newOrder.queueNumber,
-        'paymentMethod': paymentMethod,
-        'totalPayment': total,
-        'points': pointsData ?? {
-          'earned': _earnedCashbackPoints,
-          'used': _pointsToUse,
-          'discountAmount': _pointDiscountAmount,
-          'currentBalance': UserService.instance.points,
-          'isPending': paymentMethod.toLowerCase().contains('cash') || paymentMethod.toLowerCase().contains('tunai'),
+      // Navigate ke halaman pembayaran berhasil
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.paymentSuccess,
+        (route) => false,
+        arguments: {
+          'orderNumber': newOrder.id,
+          'queueNumber': newOrder.queueNumber,
+          'paymentMethod': paymentMethod,
+          'totalPayment': total,
+          'points': pointsData ?? {
+            'earned': _earnedCashbackPoints,
+            'used': _pointsToUse,
+            'discountAmount': _pointDiscountAmount,
+            'currentBalance': UserService.instance.points,
+            'isPending': paymentMethod.toLowerCase().contains('cash') || paymentMethod.toLowerCase().contains('tunai'),
+          },
         },
-      },
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: const Color(0xFFC93B2B),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   @override
@@ -527,6 +588,7 @@ class _CartPageState extends State<CartPage> {
       animation: Listenable.merge([
         CartService.instance,
         PickupModeService.instance,
+        MenuService.instance,
       ]),
       builder: (context, _) {
         return Scaffold(
@@ -626,6 +688,34 @@ class _CartPageState extends State<CartPage> {
                       ),
                     ),
 
+                    // Peringatan jika ada item habis di keranjang
+                    if (_hasUnavailableItem)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFFCDD2)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.error_outline_rounded, color: Color(0xFFC62828), size: 20),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Ada menu di keranjang yang saat ini habis (sold out). Hapus menu tersebut agar dapat melanjutkan pesanan.',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: Color(0xFFC62828),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Daftar Item Keranjang
                     if (_cartItems.isEmpty)
                       const Padding(
@@ -639,10 +729,14 @@ class _CartPageState extends State<CartPage> {
                       )
                     else
                       ...List.generate(_cartItems.length, (index) {
+                        final it = _cartItems[index];
+                        final isUnavail = MenuService.instance.isSoldOut(it.id, it.name);
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 14),
                           child: CartItemCard(
-                            item: _cartItems[index],
+                            item: it,
+                            isUnavailable: isUnavail,
                             onIncrement: () => _onIncrement(index),
                             onDecrement: () => _onDecrement(index),
                           ),
@@ -1113,7 +1207,7 @@ class _CartPageState extends State<CartPage> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _cartItems.isEmpty ? null : _onCheckout,
+                      onPressed: (_cartItems.isEmpty || _hasUnavailableItem) ? null : _onCheckout,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryBrown,
                         disabledBackgroundColor: Colors.grey.shade400,
@@ -1125,9 +1219,11 @@ class _CartPageState extends State<CartPage> {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          _selectedPaymentMethod == 'Cash'
-                              ? 'Pesan & Bayar di Kasir (${_formatPrice(_totalPayment)})'
-                              : 'Bayar via QRIS (${_formatPrice(_totalPayment)})',
+                          _hasUnavailableItem
+                              ? 'Hapus Menu Habis untuk Melanjutkan'
+                              : _selectedPaymentMethod == 'Cash'
+                                  ? 'Pesan & Bayar di Kasir (${_formatPrice(_totalPayment)})'
+                                  : 'Bayar via QRIS (${_formatPrice(_totalPayment)})',
                           maxLines: 1,
                           style: const TextStyle(
                             fontSize: 15,

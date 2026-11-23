@@ -10,6 +10,7 @@ class ProductModel {
   final String description;
   final String? subcategory;
   final String? tag;
+  final bool isAvailable;
 
   const ProductModel({
     required this.id,
@@ -20,9 +21,34 @@ class ProductModel {
     this.description = '',
     this.subcategory,
     this.tag,
+    this.isAvailable = true,
   });
 
   String get formattedPrice => AppFormatters.formatRupiah(price);
+
+  ProductModel copyWith({
+    String? id,
+    String? name,
+    int? price,
+    String? category,
+    String? image,
+    String? description,
+    String? subcategory,
+    String? tag,
+    bool? isAvailable,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      price: price ?? this.price,
+      category: category ?? this.category,
+      image: image ?? this.image,
+      description: description ?? this.description,
+      subcategory: subcategory ?? this.subcategory,
+      tag: tag ?? this.tag,
+      isAvailable: isAvailable ?? this.isAvailable,
+    );
+  }
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     final rawImage = json['image']?.toString() ?? json['imageUrl']?.toString() ?? '';
@@ -37,6 +63,15 @@ class ProductModel {
       return 0;
     }
 
+    final rawAvailable = json['isAvailable'] ?? json['is_available'];
+    final bool available = rawAvailable == null
+        ? true
+        : (rawAvailable is bool
+            ? rawAvailable
+            : (rawAvailable is num
+                ? rawAvailable == 1
+                : rawAvailable.toString() == '1' || rawAvailable.toString().toLowerCase() == 'true'));
+
     return ProductModel(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
@@ -46,6 +81,7 @@ class ProductModel {
       description: json['description']?.toString() ?? '',
       subcategory: json['subcategory']?.toString(),
       tag: json['tag']?.toString(),
+      isAvailable: available,
     );
   }
 
@@ -59,6 +95,7 @@ class ProductModel {
       'description': description,
       'subcategory': subcategory,
       'tag': tag,
+      'isAvailable': isAvailable,
     };
   }
 }

@@ -34,53 +34,92 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isAvailable = widget.product.isAvailable;
     final safeIndex = widget.levelOptions.isEmpty
         ? 0
         : _selectedLevelIndex.clamp(0, widget.levelOptions.length - 1);
     final selectedOption =
         widget.levelOptions.isNotEmpty ? widget.levelOptions[safeIndex] : null;
 
-    return Container(
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Row: Image & Info (Klik untuk buka opsi & kuantitas)
-          GestureDetector(
-            onTap: () {
-              if (selectedOption != null) {
-                widget.onAddToCart(widget.product, selectedOption);
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12.0),
-                  child: SizedBox(
-                    width: 72,
-                    height: 72,
-                    child: Image.asset(
-                      widget.product.image.isNotEmpty
-                          ? widget.product.image
-                          : AppAssets.nasiGorengTelur,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: AppColors.cardBgColor,
-                        child: const Center(
-                          child: Icon(Icons.restaurant_rounded,
-                              size: 28, color: AppColors.primaryBrown),
-                        ),
+    return Opacity(
+      opacity: isAvailable ? 1.0 : 0.65,
+      child: Container(
+        padding: const EdgeInsets.all(12.0),
+        decoration: BoxDecoration(
+          color: isAvailable ? Colors.white : const Color(0xFFECEAE5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isAvailable ? AppColors.inputBorderColor : const Color(0xFFD6D1C7),
+            width: 1.0,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Image & Info (Klik untuk buka opsi & kuantitas)
+            GestureDetector(
+              onTap: () {
+                if (!isAvailable) return;
+                if (selectedOption != null) {
+                  widget.onAddToCart(widget.product, selectedOption);
+                }
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12.0),
+                    child: SizedBox(
+                      width: 72,
+                      height: 72,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ColorFiltered(
+                            colorFilter: isAvailable
+                                ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
+                                : const ColorFilter.mode(Colors.grey, BlendMode.saturation),
+                            child: Image.asset(
+                              widget.product.image.isNotEmpty
+                                  ? widget.product.image
+                                  : AppAssets.nasiGorengTelur,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                color: AppColors.cardBgColor,
+                                child: const Center(
+                                  child: Icon(Icons.restaurant_rounded,
+                                      size: 28, color: AppColors.primaryBrown),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (!isAvailable)
+                            Container(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFC93B2B),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'SOLD OUT',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -173,15 +212,38 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: Text(
-                  'Mulai ${widget.product.formattedPrice}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkText,
-                  ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Mulai ${widget.product.formattedPrice}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: isAvailable ? AppColors.darkText : const Color(0xFF8C827A),
+                      ),
+                    ),
+                    if (!isAvailable) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFFFFCDD2)),
+                        ),
+                        child: const Text(
+                          'Habis',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFC62828),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -189,6 +251,7 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
+                    if (!isAvailable) return;
                     if (selectedOption != null) {
                       widget.onAddToCart(widget.product, selectedOption);
                     }
@@ -200,13 +263,13 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryBrown,
+                      color: isAvailable ? AppColors.primaryBrown : const Color(0xFFDDD8CE),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
-                      '+ Add',
+                    child: Text(
+                      isAvailable ? '+ Add' : 'Sold Out',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: isAvailable ? Colors.white : const Color(0xFF7A726A),
                         fontSize: 11.5,
                         fontWeight: FontWeight.bold,
                       ),
@@ -218,7 +281,8 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

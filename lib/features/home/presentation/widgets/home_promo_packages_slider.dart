@@ -8,12 +8,14 @@ class HomePromoPackagesSlider extends StatelessWidget {
   final bool isVoucherApplied;
   final VoidCallback onToggleVoucher;
   final VoidCallback onBundleTap;
+  final bool isBundleAvailable;
 
   const HomePromoPackagesSlider({
     super.key,
     required this.isVoucherApplied,
     required this.onToggleVoucher,
     required this.onBundleTap,
+    this.isBundleAvailable = true,
   });
 
   @override
@@ -54,6 +56,7 @@ class HomePromoPackagesSlider extends StatelessWidget {
                 width: cardWidth,
                 child: HomeBundleCard(
                   width: cardWidth,
+                  isAvailable: isBundleAvailable,
                   onTap: onBundleTap,
                 ),
               ),
