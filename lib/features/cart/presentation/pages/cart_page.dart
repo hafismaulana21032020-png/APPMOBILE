@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_assets.dart';
@@ -7,6 +8,7 @@ import '../../domain/models/cart_item_model.dart';
 import '../../domain/services/cart_service.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../account/domain/services/user_service.dart';
+import '../../../home/domain/services/pickup_mode_service.dart';
 import '../../../order/domain/services/order_service.dart';
 import '../widgets/cart_item_card.dart';
 
@@ -30,6 +32,9 @@ class _CartPageState extends State<CartPage> {
   // Metode Pembayaran Terpilih (Hanya QRIS & Cash)
   String _selectedPaymentMethod = 'QRIS';
   final List<String> _paymentMethods = ['QRIS', 'Cash'];
+
+  // Toggle Pemakaian Poin Cashback BreakFree
+  bool _usePoints = false;
 
   @override
   void initState() {
@@ -62,9 +67,39 @@ class _CartPageState extends State<CartPage> {
     return (_subtotal * _discountPercent).round();
   }
 
+  // Kalkulasi Aturan Poin Single Source of Truth:
+  // - 100 poin = Rp 1.000 (1 poin = Rp 10)
+  // - Kelipatan 100 poin, minimal 100 poin
+  // - Maksimal diskon 25% dari subtotal, dibulatkan ke bawah per Rp 1.000
+  int get _userPoints => UserService.instance.points;
+  int get _usablePoints => (_userPoints ~/ 100) * 100;
+  int get _maxPointsDiscount => ((_subtotal * 0.25) ~/ 1000) * 1000;
+
+  int get _potentialPointsToUse {
+    if (_userPoints < 100 || _subtotal <= 0) return 0;
+    final maxPointsAllowed = _maxPointsDiscount ~/ 10;
+    return math.min(maxPointsAllowed, _usablePoints);
+  }
+
+  int get _potentialDiscountAmount => _potentialPointsToUse * 10;
+
+  int get _pointsToUse => _usePoints ? _potentialPointsToUse : 0;
+  int get _pointDiscountAmount => _pointsToUse * 10;
+
+  // PPN 10% dari pesanan
+  int get _taxAmount => (_subtotal * 0.10).round();
+
   int get _totalPayment {
-    final total = _subtotal - _discountAmount;
+    final payableSubtotal = _subtotal - _discountAmount - (_usePoints ? _pointDiscountAmount : 0);
+    final total = (payableSubtotal > 0 ? payableSubtotal : 0) + _taxAmount;
     return total > 0 ? total : 0;
+  }
+
+  // Earning Cashback 5%: Math.floor(payableSubtotal / 1000) * 5
+  int get _earnedCashbackPoints {
+    final payable = _subtotal - (_usePoints ? _pointDiscountAmount : 0) - _discountAmount;
+    if (payable <= 0) return 0;
+    return (payable ~/ 1000) * 5;
   }
 
   String _formatPrice(int price) => AppFormatters.formatRupiah(price);
@@ -427,17 +462,38 @@ class _CartPageState extends State<CartPage> {
     final promoCode = CartService.instance.appliedPromoCode;
     final cartItems = List<CartItemModel>.from(CartService.instance.items);
 
+    final isTakeawayMode = PickupModeService.instance.isTakeaway ||
+        cartItems.any((it) =>
+            it.options.toLowerCase().contains('take away') ||
+            it.options.toLowerCase().contains('takeaway') ||
+            it.options.toLowerCase().contains('bungkus'));
+    final pickupType = isTakeawayMode
+        ? 'Takeaway (Bungkus Bawa Pulang)'
+        : 'Dine-in (Minum di Kafe)';
+
     // Buat live order di OrderService dan sinkronkan ke backend Web POS
     final newOrder = await OrderService.instance.createOrderFromCart(
       items: cartItems,
       paymentMethod: paymentMethod,
       totalPrice: total,
       promoCode: promoCode,
+      pickupType: pickupType,
+      usePoints: _usePoints,
     );
 
-    // Setiap pembelian menggunakan aplikasi mendapatkan cashback poin
-    final earnedPoints = (total >= 40000 ? 100 : 50);
-    UserService.instance.addPoints(earnedPoints);
+    final pointsData = newOrder.points;
+    if (pointsData != null && pointsData['currentBalance'] != null) {
+      UserService.instance.setPoints(pointsData['currentBalance']);
+    } else {
+      // Fallback lokal jika respon backend tanpa payload points
+      if (_usePoints && _pointsToUse > 0) {
+        UserService.instance.deductPoints(_pointsToUse);
+      }
+      final isCash = paymentMethod.toLowerCase().contains('cash') || paymentMethod.toLowerCase().contains('tunai');
+      if (!isCash && _earnedCashbackPoints > 0) {
+        UserService.instance.addPoints(_earnedCashbackPoints);
+      }
+    }
 
     // Bersihkan keranjang
     CartService.instance.clear();
@@ -454,7 +510,13 @@ class _CartPageState extends State<CartPage> {
         'queueNumber': newOrder.queueNumber,
         'paymentMethod': paymentMethod,
         'totalPayment': total,
-        'earnedPoints': earnedPoints,
+        'points': pointsData ?? {
+          'earned': _earnedCashbackPoints,
+          'used': _pointsToUse,
+          'discountAmount': _pointDiscountAmount,
+          'currentBalance': UserService.instance.points,
+          'isPending': paymentMethod.toLowerCase().contains('cash') || paymentMethod.toLowerCase().contains('tunai'),
+        },
       },
     );
   }
@@ -462,7 +524,10 @@ class _CartPageState extends State<CartPage> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: CartService.instance,
+      animation: Listenable.merge([
+        CartService.instance,
+        PickupModeService.instance,
+      ]),
       builder: (context, _) {
         return Scaffold(
           backgroundColor: AppColors.backgroundColor,
@@ -521,6 +586,45 @@ class _CartPageState extends State<CartPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 6),
+
+                    // Indikator Mode Pengambilan Self-Service
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardBgColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.inputBorderColor,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            PickupModeService.instance.isDineIn
+                                ? Icons.local_cafe_outlined
+                                : Icons.shopping_bag_outlined,
+                            size: 18,
+                            color: AppColors.primaryBrown,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${PickupModeService.instance.displayTitle} • Ambil di Counter Bar',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkBrown,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                     // Daftar Item Keranjang
                     if (_cartItems.isEmpty)
@@ -697,6 +801,152 @@ class _CartPageState extends State<CartPage> {
                       }).toList(),
                     ),
 
+                    const SizedBox(height: 18),
+
+                    // ================= KARTU PAKAI POIN BREAKFREE =================
+                    AnimatedBuilder(
+                      animation: UserService.instance,
+                      builder: (context, _) {
+                        final canRedeem = _userPoints >= 100 && _potentialPointsToUse > 0;
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _usePoints ? AppColors.primaryBrown : AppColors.inputBorderColor,
+                              width: _usePoints ? 1.5 : 1.0,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF8E1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.stars_rounded,
+                                      color: Color(0xFFFFB300),
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Wrap(
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: 6,
+                                          runSpacing: 2,
+                                          children: [
+                                            const Text(
+                                              'Pakai Poin BreakFree',
+                                              style: TextStyle(
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.darkText,
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.cardBgColor,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                '$_userPoints Poin',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.primaryBrown,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          _userPoints < 100
+                                              ? 'Minimal 100 poin untuk dapat ditukarkan'
+                                              : (_usePoints
+                                                  ? 'Gunakan $_pointsToUse poin (Hemat ${_formatPrice(_pointDiscountAmount)})'
+                                                  : 'Gunakan $_potentialPointsToUse poin (Hemat ${_formatPrice(_potentialDiscountAmount)})'),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: _userPoints < 100 ? Colors.grey : AppColors.secondaryText,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Switch.adaptive(
+                                    value: _usePoints && canRedeem,
+                                    activeColor: AppColors.primaryBrown,
+                                    activeTrackColor: AppColors.cardBgColor,
+                                    onChanged: canRedeem
+                                        ? (val) {
+                                            setState(() {
+                                              _usePoints = val;
+                                            });
+                                          }
+                                        : null,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              // Banner Estimasi Cashback
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F8E9),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.card_giftcard_rounded,
+                                      size: 16,
+                                      color: Color(0xFF2E7D32),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        '+$_earnedCashbackPoints Poin Cashback akan kamu dapatkan',
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF2E7D32),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -773,8 +1023,63 @@ class _CartPageState extends State<CartPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                   ],
+
+                  // Potongan Poin BreakFree
+                  if (_usePoints && _pointDiscountAmount > 0) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Potongan Poin BreakFree',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF0F9D58),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '-${_formatPrice(_pointDiscountAmount)}',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F9D58),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+
+                  // PPN 10% dari pesanan
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'PPN (10%)',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: AppColors.secondaryText,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatPrice(_taxAmount),
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.darkText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
 
                   // Total Pembayaran
                   Row(

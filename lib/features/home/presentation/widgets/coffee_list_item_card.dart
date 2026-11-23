@@ -16,14 +16,19 @@ class CoffeeListItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onAddToCart,
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
-      ),
-      child: Row(
+        child: Container(
+          padding: const EdgeInsets.all(10.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+            border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
+          ),
+          child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Gambar Thumbnail Produk
@@ -123,7 +128,9 @@ class CoffeeListItemCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

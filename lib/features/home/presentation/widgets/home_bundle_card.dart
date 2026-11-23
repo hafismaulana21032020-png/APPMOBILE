@@ -3,10 +3,12 @@ import '../../../../core/theme/app_colors.dart';
 
 class HomeBundleCard extends StatelessWidget {
   final VoidCallback onTap;
+  final double? width;
 
   const HomeBundleCard({
     super.key,
     required this.onTap,
+    this.width,
   });
 
   @override
@@ -17,7 +19,7 @@ class HomeBundleCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Ink(
-          width: double.infinity,
+          width: width ?? double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: Colors.white,

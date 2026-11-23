@@ -12,18 +12,30 @@ class HomeHeader extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'BreakFree',
                 style: AppTextStyles.brandTitle,
               ),
-              SizedBox(height: 2),
-              Text(
-                'Malang, Indonesia',
-                style: AppTextStyles.brandSubtitle,
+              const SizedBox(height: 2),
+              Row(
+                children: const [
+                  Text(
+                    'Malang, Indonesia',
+                    style: AppTextStyles.brandSubtitle,
+                  ),
+                  Text(
+                    ' • Buka s/d 22.00',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2E7D32),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

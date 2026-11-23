@@ -7,15 +7,26 @@ class HomeTabController extends ChangeNotifier {
 
   int _currentIndex = 0;
   int _previousIndex = 0;
+  String _selectedCategory = 'Semua';
 
   int get currentIndex => _currentIndex;
   int get previousIndex => _previousIndex;
+  String get selectedCategory => _selectedCategory;
 
-  /// Updates the active tab index (`0` = Home, `1` = Menu) and notifies listeners.
-  void selectTab(int index) {
-    if (index == _currentIndex) return;
+  /// Updates the active tab index (`0` = Home, `1` = Menu) and optionally changes category.
+  void selectTab(int index, {String? category}) {
+    if (category != null) {
+      _selectedCategory = category;
+    }
+    if (index == _currentIndex && category == null) return;
     _previousIndex = _currentIndex;
     _currentIndex = index;
+    notifyListeners();
+  }
+
+  void setSelectedCategory(String category) {
+    if (_selectedCategory == category) return;
+    _selectedCategory = category;
     notifyListeners();
   }
 

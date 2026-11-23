@@ -19,6 +19,11 @@ class UserService extends ChangeNotifier {
   String get memberBadge => _memberBadge;
   int get points => _points;
 
+  void setPoints(int value) {
+    _points = value;
+    notifyListeners();
+  }
+
   void addPoints(int pointsToAdd) {
     _points += pointsToAdd;
     notifyListeners();

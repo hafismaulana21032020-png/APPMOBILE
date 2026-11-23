@@ -30,6 +30,7 @@ class OrderService extends ChangeNotifier {
     required int totalPrice,
     String? promoCode,
     String pickupType = 'Dine-in (Minum di Kafe)',
+    bool usePoints = false,
   }) async {
     final now = DateTime.now();
     final randomNum = (Random().nextInt(9000) + 1000).toString().padLeft(4, '0');
@@ -44,7 +45,7 @@ class OrderService extends ChangeNotifier {
         ? 'Menunggu pembayaran tunai di kasir. Silakan bayar ke kasir agar pesanan segera diracik.'
         : 'Pesanan telah diterima kasir & dapur. Segera masuk proses peracikan.';
 
-    final newOrder = OrderModel(
+    var newOrder = OrderModel(
       id: orderId,
       queueNumber: queueCode,
       counterName: 'Counter Bar 01',
@@ -85,10 +86,17 @@ class OrderService extends ChangeNotifier {
         'paymentMethod': paymentMethod,
         'promoCode': promoCode,
         'totalPrice': totalPrice,
+        'usePoints': usePoints,
       });
 
       if (res['success'] == true) {
         debugPrint('Pesanan ${newOrder.id} (${newOrder.queueNumber}) berhasil masuk ke Live Tracking Web POS & Dapur!');
+        if (res['points'] != null) {
+          final pointsData = Map<String, dynamic>.from(res['points']);
+          newOrder = newOrder.copyWith(points: pointsData);
+          _activeOrder = newOrder;
+          notifyListeners();
+        }
       } else {
         debugPrint('Checkout backend status: ${res['message']}');
       }

@@ -50,58 +50,66 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row: Image & Info
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12.0),
-                child: SizedBox(
-                  width: 72,
-                  height: 72,
-                  child: Image.asset(
-                    widget.product.image.isNotEmpty
-                        ? widget.product.image
-                        : AppAssets.nasiGorengTelur,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: AppColors.cardBgColor,
-                      child: const Center(
-                        child: Icon(Icons.restaurant_rounded,
-                            size: 28, color: AppColors.primaryBrown),
+          // Top Row: Image & Info (Klik untuk buka opsi & kuantitas)
+          GestureDetector(
+            onTap: () {
+              if (selectedOption != null) {
+                widget.onAddToCart(widget.product, selectedOption);
+              }
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12.0),
+                  child: SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: Image.asset(
+                      widget.product.image.isNotEmpty
+                          ? widget.product.image
+                          : AppAssets.nasiGorengTelur,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppColors.cardBgColor,
+                        child: const Center(
+                          child: Icon(Icons.restaurant_rounded,
+                              size: 28, color: AppColors.primaryBrown),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.product.name,
-                      style: const TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkText,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.product.name,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkText,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      widget.product.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.secondaryText,
-                        height: 1.25,
+                      const SizedBox(height: 3),
+                      Text(
+                        widget.product.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.secondaryText,
+                          height: 1.25,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 10),
 

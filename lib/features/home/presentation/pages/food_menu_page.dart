@@ -44,33 +44,10 @@ class _FoodMenuPageState extends State<FoodMenuPage> {
       .firstWhere((p) => p?.id == 'm-addon-2', orElse: () => null);
 
   void _onAddToCart(ProductModel product, [String? extra, int? customPrice]) {
-    if (extra == null && customPrice == null) {
-      ProductOrderBottomSheet.show(context, product);
-      return;
-    }
-
-    CartService.instance.addProduct(
+    ProductOrderBottomSheet.show(
+      context,
       product,
-      options: extra,
-      customPrice: customPrice,
-    );
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          extra != null
-              ? '${product.name} ($extra) masuk ke keranjang belanja!'
-              : '${product.name} masuk ke keranjang belanja!',
-        ),
-        backgroundColor: AppColors.primaryBrown,
-        duration: const Duration(seconds: 2),
-        action: SnackBarAction(
-          label: 'Lihat',
-          textColor: AppColors.buttonYellow,
-          onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
-        ),
-      ),
+      initialOption: extra,
     );
   }
 

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/utils/app_formatters.dart';
+import '../../../account/domain/services/user_service.dart';
 
 class PaymentSuccessPage extends StatelessWidget {
   const PaymentSuccessPage({super.key});
@@ -19,6 +21,26 @@ class PaymentSuccessPage extends StatelessWidget {
     final queueNumber = args?['queueNumber'] as String? ?? 'A-01';
     final isCash = paymentMethod.toLowerCase().contains('cash') ||
         paymentMethod.toLowerCase().contains('tunai');
+    final totalPayment = args?['totalPayment'] as int? ?? 0;
+
+    // Data Poin & Cashback
+    final points = args?['points'] as Map<String, dynamic>?;
+    final earned = points != null
+        ? (points['earned'] as int? ?? 0)
+        : (args?['earnedPoints'] as int? ?? 0);
+    final used = points != null ? (points['used'] as int? ?? 0) : 0;
+    final discountAmount = points != null ? (points['discountAmount'] as int? ?? 0) : 0;
+    final currentBalance = points != null && points['currentBalance'] != null
+        ? (points['currentBalance'] as int)
+        : UserService.instance.points;
+    final isPending = points != null ? (points['isPending'] as bool? ?? isCash) : isCash;
+
+    // Sinkronkan saldo terkini jika ada
+    if (points != null && points['currentBalance'] != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        UserService.instance.setPoints(currentBalance);
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
@@ -160,11 +182,132 @@ class PaymentSuccessPage extends StatelessWidget {
                                 ? const Color(0xFFE65100)
                                 : const Color(0xFF2E7D32),
                           ),
+
+                          if (totalPayment > 0) ...[
+                            Divider(
+                              height: 1,
+                              thickness: 1,
+                              color: AppColors.inputBorderColor,
+                            ),
+
+                            // Row: Total Pembayaran (termasuk PPN 10%)
+                            _InfoRow(
+                              label: 'Total Bayar (Inc. PPN)',
+                              value: AppFormatters.formatRupiah(totalPayment),
+                              valueBold: true,
+                              valueColor: AppColors.darkBrown,
+                            ),
+                          ],
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 18),
+
+                    // ── Golden Reward Card (Poin Cashback & Hemat) ──
+                    if (earned > 0 || used > 0) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFF9C4), Color(0xFFFFF176)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFFFD54F),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFFD54F).withOpacity(0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.stars_rounded,
+                                    color: Color(0xFFF57F17),
+                                    size: 26,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isPending
+                                            ? 'Estimasi +$earned Poin Cashback'
+                                            : '+$earned Poin BreakFree Masuk!',
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF5D4037),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        isPending
+                                            ? 'Poin otomatis masuk setelah pembayaran dikonfirmasi kasir'
+                                            : 'Total saldo poinmu sekarang: $currentBalance poin',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF795548),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (used > 0) ...[
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.85),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle_outline_rounded,
+                                      size: 16,
+                                      color: Color(0xFF2E7D32),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Hemat ${AppFormatters.formatRupiah(discountAmount)} ($used poin terpakai)',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF2E7D32),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
 
                     // ── Motivational Banner ──
                     Container(

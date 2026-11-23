@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/app_assets.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../cart/domain/services/cart_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
 import 'ai_chat_view.dart';
+import 'product_order_bottom_sheet.dart';
 
 /// Displays the BreakFree AI Barista assistant bottom sheet with
 /// both interactive Chatbot capability and Quick Recommendations.
@@ -34,48 +36,79 @@ class AiAssistantSheetContent extends StatefulWidget {
 
 class _AiAssistantSheetContentState extends State<AiAssistantSheetContent> {
   late int _selectedTab;
+  final FocusNode _chatFocusNode = FocusNode();
 
-  final List<ProductModel> _recommendations = [
-    breakfreeMenuItems.firstWhere(
-      (p) => p.id == 'ic-3',
-      orElse: () => breakfreeMenuItems.first,
-    ),
-    breakfreeMenuItems.firstWhere(
-      (p) => p.id == 'nk-s-5',
-      orElse: () => breakfreeMenuItems.first,
-    ),
-    breakfreeMenuItems.firstWhere(
-      (p) => p.id == 'm-np-2',
-      orElse: () => breakfreeMenuItems.first,
-    ),
-    breakfreeMenuItems.firstWhere(
-      (p) => p.id == 'snack-2',
-      orElse: () => breakfreeMenuItems.first,
-    ),
-  ];
+  List<ProductModel> _recommendations = [];
+  bool _isLoadingRecommendations = true;
 
   @override
   void initState() {
     super.initState();
     _selectedTab = widget.initialTabIndex;
+    _fetchRecommendations();
+  }
+
+  @override
+  void dispose() {
+    _chatFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchRecommendations() async {
+    setState(() {
+      _isLoadingRecommendations = true;
+    });
+    try {
+      final res = await ApiService.instance.getBaristaRecommendations();
+      if (res['success'] == true && res['data'] is List) {
+        final list = (res['data'] as List)
+            .whereType<Map<String, dynamic>>()
+            .map((json) => ProductModel.fromJson(json))
+            .toList();
+        if (list.isNotEmpty && mounted) {
+          setState(() {
+            _recommendations = list;
+            _isLoadingRecommendations = false;
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching recommendations: $e');
+    }
+    if (mounted) {
+      setState(() {
+        if (_recommendations.isEmpty) {
+          _recommendations = _getFallbackRecommendations();
+        }
+        _isLoadingRecommendations = false;
+      });
+    }
+  }
+
+  List<ProductModel> _getFallbackRecommendations() {
+    return [
+      breakfreeMenuItems.firstWhere(
+        (p) => p.id == 'ic-3',
+        orElse: () => breakfreeMenuItems.first,
+      ),
+      breakfreeMenuItems.firstWhere(
+        (p) => p.id == 'nk-s-5',
+        orElse: () => breakfreeMenuItems.first,
+      ),
+      breakfreeMenuItems.firstWhere(
+        (p) => p.id == 'm-np-2',
+        orElse: () => breakfreeMenuItems.first,
+      ),
+      breakfreeMenuItems.firstWhere(
+        (p) => p.id == 'snack-2',
+        orElse: () => breakfreeMenuItems.first,
+      ),
+    ];
   }
 
   void _onAddToCart(ProductModel product) {
-    CartService.instance.addProduct(product);
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product.name} masuk ke keranjang belanja!'),
-        backgroundColor: AppColors.primaryBrown,
-        duration: const Duration(seconds: 2),
-        action: SnackBarAction(
-          label: 'Lihat',
-          textColor: AppColors.buttonYellow,
-          onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
-        ),
-      ),
-    );
+    ProductOrderBottomSheet.show(context, product);
   }
 
   void _openFullScreenChat() {
@@ -151,6 +184,7 @@ class _AiAssistantSheetContentState extends State<AiAssistantSheetContent> {
             Expanded(
               child: _selectedTab == 0
                   ? AiChatView(
+                      focusNode: _chatFocusNode,
                       onOpenFullScreen: _openFullScreenChat,
                       onClose: () => Navigator.pop(context),
                     )
@@ -225,6 +259,11 @@ class _AiAssistantSheetContentState extends State<AiAssistantSheetContent> {
             onTap: () {
               setState(() {
                 _selectedTab = 0;
+              });
+              Future.delayed(const Duration(milliseconds: 150), () {
+                if (mounted) {
+                  _chatFocusNode.requestFocus();
+                }
               });
             },
             borderRadius: BorderRadius.circular(16),
@@ -330,113 +369,169 @@ class _AiAssistantSheetContentState extends State<AiAssistantSheetContent> {
           ),
           const SizedBox(height: 12),
 
-          ..._recommendations.map(
-            (product) => Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.inputBorderColor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(5),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.asset(
-                      product.image,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 48,
-                        height: 48,
-                        color: AppColors.cardBgColor,
-                        child: const Icon(
-                          Icons.coffee_rounded,
-                          color: AppColors.primaryBrown,
-                          size: 22,
+          if (_isLoadingRecommendations)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primaryBrown,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 12),
+                    Text(
+                      'Menyiapkan rekomendasi barista terlaris...',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.secondaryText.withAlpha(220),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ..._recommendations.map(
+              (product) => Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _onAddToCart(product),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.inputBorderColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(5),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          product.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.darkText,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: _buildProductThumbnail(product.image),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                product.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.darkText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                product.formattedPrice,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primaryBrown,
+                                ),
+                              ),
+                              if (product.description.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  product.description,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.secondaryText,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          product.formattedPrice,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryBrown,
-                          ),
-                        ),
-                        if (product.description.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            product.description,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.secondaryText,
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: () => _onAddToCart(product),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBrown,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                        ],
+                          child: const Text(
+                            '+ Tambah',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: () => _onAddToCart(product),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBrown,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      '+ Tambah',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProductThumbnail(String rawImage) {
+    final img = rawImage.trim();
+    if (img.startsWith('http://') || img.startsWith('https://')) {
+      return Image.network(
+        img,
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackThumbnail(),
+      );
+    }
+    return Image.asset(
+      img.isNotEmpty ? img : AppAssets.breakfreeArenLatte,
+      width: 48,
+      height: 48,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _buildFallbackThumbnail(),
+    );
+  }
+
+  Widget _buildFallbackThumbnail() {
+    return Container(
+      width: 48,
+      height: 48,
+      color: AppColors.cardBgColor,
+      child: const Icon(
+        Icons.coffee_rounded,
+        color: AppColors.primaryBrown,
+        size: 22,
       ),
     );
   }

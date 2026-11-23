@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/routes/app_routes.dart';
+import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../cart/domain/services/cart_service.dart';
 import '../../domain/models/chat_message_model.dart';
 import '../../domain/models/product_model.dart';
 import '../../domain/services/ai_chat_service.dart';
+import 'product_order_bottom_sheet.dart';
 
 /// Interactive Chat View component for BreakFree Barista AI.
 /// Usable both in a bottom sheet and inside a full screen page.
@@ -13,12 +13,14 @@ class AiChatView extends StatefulWidget {
   final bool isFullScreen;
   final VoidCallback? onOpenFullScreen;
   final VoidCallback? onClose;
+  final FocusNode? focusNode;
 
   const AiChatView({
     super.key,
     this.isFullScreen = false,
     this.onOpenFullScreen,
     this.onClose,
+    this.focusNode,
   });
 
   @override
@@ -28,12 +30,13 @@ class AiChatView extends StatefulWidget {
 class _AiChatViewState extends State<AiChatView> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final FocusNode _focusNode = FocusNode();
+  late final FocusNode _focusNode;
   bool _canSend = false;
 
   @override
   void initState() {
     super.initState();
+    _focusNode = widget.focusNode ?? FocusNode();
     _textController.addListener(_onTextChanged);
     AiChatService.instance.addListener(_onServiceUpdate);
   }
@@ -43,7 +46,9 @@ class _AiChatViewState extends State<AiChatView> {
     _textController.removeListener(_onTextChanged);
     _textController.dispose();
     _scrollController.dispose();
-    _focusNode.dispose();
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
     AiChatService.instance.removeListener(_onServiceUpdate);
     super.dispose();
   }
@@ -84,21 +89,7 @@ class _AiChatViewState extends State<AiChatView> {
   }
 
   void _addToCart(ProductModel product) {
-    CartService.instance.addProduct(product);
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product.name} masuk ke keranjang belanja!'),
-        backgroundColor: AppColors.primaryBrown,
-        duration: const Duration(seconds: 2),
-        action: SnackBarAction(
-          label: 'Lihat',
-          textColor: AppColors.buttonYellow,
-          onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
-        ),
-      ),
-    );
+    ProductOrderBottomSheet.show(context, product);
   }
 
   void _confirmResetChat() {
@@ -416,104 +407,129 @@ class _AiChatViewState extends State<AiChatView> {
   }
 
   Widget _buildProductRecommendationCard(ProductModel product) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _addToCart(product),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.inputBorderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(6),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              product.image,
-              width: 50,
-              height: 50,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 50,
-                height: 50,
-                color: AppColors.cardBgColor,
-                child: const Icon(
-                  Icons.coffee_rounded,
-                  color: AppColors.primaryBrown,
-                  size: 24,
-                ),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.inputBorderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(6),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkText,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  product.formattedPrice,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryBrown,
-                  ),
-                ),
-                if (product.description.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    product.description,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.secondaryText,
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: _buildProductThumbnail(product.image),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkText,
+                      ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      product.formattedPrice,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryBrown,
+                      ),
+                    ),
+                    if (product.description.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        product.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.secondaryText,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => _addToCart(product),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBrown,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () => _addToCart(product),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBrown,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  '+ Tambah',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
-            ),
-            child: const Text(
-              '+ Tambah',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProductThumbnail(String rawImage) {
+    final img = rawImage.trim();
+    if (img.startsWith('http://') || img.startsWith('https://')) {
+      return Image.network(
+        img,
+        width: 50,
+        height: 50,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackThumbnail(),
+      );
+    }
+    return Image.asset(
+      img.isNotEmpty ? img : AppAssets.breakfreeArenLatte,
+      width: 50,
+      height: 50,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _buildFallbackThumbnail(),
+    );
+  }
+
+  Widget _buildFallbackThumbnail() {
+    return Container(
+      width: 50,
+      height: 50,
+      color: AppColors.cardBgColor,
+      child: const Icon(
+        Icons.coffee_rounded,
+        color: AppColors.primaryBrown,
+        size: 24,
       ),
     );
   }
@@ -587,12 +603,20 @@ class _AiChatViewState extends State<AiChatView> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         itemCount: suggestions.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final suggestion = suggestions[index];
+          final cleanText = _cleanSuggestionLabel(suggestion);
+          final icon = _getSuggestionIcon(suggestion);
+
           return ActionChip(
+            avatar: Icon(
+              icon,
+              size: 15,
+              color: AppColors.primaryBrown,
+            ),
             label: Text(
-              suggestion,
+              cleanText,
               style: const TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
@@ -608,11 +632,47 @@ class _AiChatViewState extends State<AiChatView> {
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            onPressed: () => _sendMessage(suggestion),
+            onPressed: () => _sendMessage(cleanText),
           );
         },
       ),
     );
+  }
+
+  IconData _getSuggestionIcon(String text) {
+    final lower = text.toLowerCase();
+    if (lower.contains('manis') || lower.contains('creamy') || lower.contains('aren')) {
+      return Icons.local_cafe_rounded;
+    }
+    if (lower.contains('strong') || lower.contains('nugas') || lower.contains('hitam') || lower.contains('kafein')) {
+      return Icons.bolt_rounded;
+    }
+    if (lower.contains('non-kopi') || lower.contains('segar') || lower.contains('buah') || lower.contains('tea')) {
+      return Icons.local_drink_rounded;
+    }
+    if (lower.contains('makan') || lower.contains('lapar') || lower.contains('mie') || lower.contains('nasi')) {
+      return Icons.restaurant_rounded;
+    }
+    if (lower.contains('camilan') || lower.contains('snack') || lower.contains('ngemil') || lower.contains('fries')) {
+      return Icons.fastfood_rounded;
+    }
+    if (lower.contains('promo') || lower.contains('voucher') || lower.contains('diskon') || lower.contains('break20')) {
+      return Icons.local_offer_rounded;
+    }
+    if (lower.contains('jam') || lower.contains('wifi') || lower.contains('wi-fi') || lower.contains('lokasi')) {
+      return Icons.schedule_rounded;
+    }
+    if (lower.contains('lacak') || lower.contains('status')) {
+      return Icons.location_searching_rounded;
+    }
+    if (lower.contains('lambung') || lower.contains('aman')) {
+      return Icons.favorite_rounded;
+    }
+    return Icons.auto_awesome;
+  }
+
+  String _cleanSuggestionLabel(String text) {
+    return text.replaceAll(RegExp(r'^[^\w\s\d]+'), '').trim();
   }
 
   Widget _buildInputBar() {

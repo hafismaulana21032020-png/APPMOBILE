@@ -5,18 +5,23 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cart/domain/services/cart_service.dart';
+import '../../../order/domain/services/order_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
+import '../../domain/services/pickup_mode_service.dart';
 import '../controllers/home_tab_controller.dart';
 import '../widgets/ai_assistant_sheet.dart';
 import '../widgets/floating_cart_bar.dart';
+import '../widgets/home_active_order_card.dart';
 import '../widgets/home_bottom_nav_bar.dart';
-import '../widgets/home_bundle_card.dart';
+import '../widgets/home_category_chips.dart';
 import '../widgets/home_header.dart';
+import '../widgets/home_points_mode_strip.dart';
+import '../widgets/home_popular_section.dart';
 import '../widgets/home_promo_banner.dart';
+import '../widgets/home_promo_packages_slider.dart';
 import '../widgets/home_search_bar.dart';
 import '../widgets/home_story_card.dart';
-import '../widgets/home_voucher_card.dart';
 import '../widgets/menu_list_view.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_order_bottom_sheet.dart';
@@ -155,7 +160,7 @@ class _HomePageState extends State<HomePage> {
     Navigator.pushNamed(context, AppRoutes.cart);
   }
 
-  Widget _buildHomeTab(bool isVoucherApplied) {
+  Widget _buildHomeTab(bool isVoucherApplied, int cartCount) {
     final results = _searchResults;
 
     return SingleChildScrollView(
@@ -167,12 +172,22 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. Header Atas: Brand + Jam Operasional + Notifikasi
           const HomeHeader(),
           const SizedBox(height: 14),
 
+          // 2. Hero Banner Promo (dengan framing/fit logo presisi)
           const HomePromoBanner(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
+          // 3. Strip Saldo Poin & Mode Pengambilan Self-Service (Dine-in / Takeaway)
+          const HomePointsModeStrip(),
+          const SizedBox(height: 12),
+
+          // 4. Kartu Live Tracking Pesanan Aktif (Kondisional)
+          const HomeActiveOrderCard(),
+
+          // 5. Search Bar & Quick Category Chips
           HomeSearchBar(
             controller: _searchController,
             onChanged: (value) {
@@ -181,6 +196,9 @@ class _HomePageState extends State<HomePage> {
               });
             },
           ),
+          const SizedBox(height: 10),
+
+          const HomeCategoryChips(),
           const SizedBox(height: 18),
 
           AnimatedSwitcher(
@@ -237,25 +255,19 @@ class _HomePageState extends State<HomePage> {
                     key: const ValueKey<String>('home_featured_content'),
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Terpopuler di Malang',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
-                          letterSpacing: -0.3,
-                        ),
+                      // 6. Section "Terpopuler di BreakFree" (Horizontal Menu Cards)
+                      const HomePopularSection(),
+                      const SizedBox(height: 20),
+
+                      // 7. Section "Promo & Paket Hemat" (Horizontal Slider)
+                      HomePromoPackagesSlider(
+                        isVoucherApplied: isVoucherApplied,
+                        onToggleVoucher: _onToggleVoucher,
+                        onBundleTap: () => _onAddToCart(_bundleIceKopiSusu),
                       ),
-                      const SizedBox(height: 12),
-                      HomeVoucherCard(
-                        isApplied: isVoucherApplied,
-                        onApplyTap: _onToggleVoucher,
-                      ),
-                      const SizedBox(height: 12),
-                      HomeBundleCard(
-                        onTap: () => _onAddToCart(_bundleIceKopiSusu),
-                      ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 20),
+
+                      // Cerita dari BreakFree
                       HomeStoryCard(
                         onExploreTap: _showAboutBreakFreeSheet,
                       ),
@@ -263,8 +275,8 @@ class _HomePageState extends State<HomePage> {
                   ),
           ),
 
-          // Padding bawah agar konten tidak tertutup floating cart bar
-          const SizedBox(height: 84),
+          // 8. Dynamic bottom padding agar tidak tertutup floating cart bar
+          SizedBox(height: cartCount > 0 ? 116 : 28),
         ],
       ),
     );
@@ -276,6 +288,8 @@ class _HomePageState extends State<HomePage> {
       animation: Listenable.merge([
         CartService.instance,
         HomeTabController.instance,
+        OrderService.instance,
+        PickupModeService.instance,
       ]),
       builder: (context, _) {
         final cartCount = CartService.instance.totalItemCount;
@@ -300,7 +314,9 @@ class _HomePageState extends State<HomePage> {
                   transitionBuilder: (child, animation) {
                     final isIncoming = child.key ==
                         ValueKey<String>(
-                          activeTab == 1 ? 'menu_tab_view' : 'home_tab_view',
+                          activeTab == 1
+                              ? 'menu_tab_view_${tabController.selectedCategory}'
+                              : 'home_tab_view',
                         );
                     final offsetBegin = movingForward
                         ? (isIncoming
@@ -319,10 +335,13 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                   child: activeTab == 1
-                      ? const MenuTabContent(
-                          key: ValueKey<String>('menu_tab_view'),
+                      ? MenuTabContent(
+                          key: ValueKey<String>(
+                            'menu_tab_view_${tabController.selectedCategory}',
+                          ),
+                          initialCategory: tabController.selectedCategory,
                         )
-                      : _buildHomeTab(isVoucherApplied),
+                      : _buildHomeTab(isVoucherApplied, cartCount),
                 ),
                 if (cartCount > 0)
                   Positioned(

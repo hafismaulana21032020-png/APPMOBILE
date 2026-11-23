@@ -27,7 +27,6 @@ import 'package:breakfree_app/features/home/presentation/pages/ai_chat_page.dart
 import 'package:breakfree_app/features/home/domain/services/ai_chat_service.dart';
 import 'package:breakfree_app/features/home/presentation/widgets/ai_assistant_sheet.dart';
 import 'package:breakfree_app/features/home/presentation/widgets/home_promo_banner.dart';
-import 'package:breakfree_app/features/order/domain/models/order_model.dart';
 import 'package:breakfree_app/features/order/domain/services/order_service.dart';
 import 'package:breakfree_app/features/order/presentation/pages/order_tracking_page.dart';
 import 'package:flutter/material.dart';

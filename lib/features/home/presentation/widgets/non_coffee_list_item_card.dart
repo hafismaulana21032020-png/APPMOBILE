@@ -15,14 +15,19 @@ class NonCoffeeListItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onAddToCart,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
-      ),
-      child: Row(
+        child: Container(
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
+          ),
+          child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Gambar Thumbnail Produk
@@ -118,7 +123,9 @@ class NonCoffeeListItemCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

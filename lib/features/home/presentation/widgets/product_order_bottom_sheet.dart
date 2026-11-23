@@ -7,13 +7,170 @@ import '../../../../core/utils/app_formatters.dart';
 import '../../../cart/domain/services/cart_service.dart';
 import '../../domain/models/product_model.dart';
 
-/// Modal bottom sheet interaktif untuk memilih jumlah pcs dan menambahkan catatan ke kasir.
+/// Model untuk opsi varian produk (misal: Kukus/Goreng, Gula/Tanpa Gula, Level Pedas 1-3).
+class ProductVariantOption {
+  final String label;
+  final int additionalPrice;
+  final String? subtitle;
+
+  const ProductVariantOption({
+    required this.label,
+    this.additionalPrice = 0,
+    this.subtitle,
+  });
+}
+
+/// Kelompok opsi untuk produk tertentu.
+class ProductOptionGroup {
+  final String title;
+  final IconData icon;
+  final List<ProductVariantOption> options;
+  final int defaultIndex;
+
+  const ProductOptionGroup({
+    required this.title,
+    required this.icon,
+    required this.options,
+    this.defaultIndex = 0,
+  });
+}
+
+/// Modal bottom sheet interaktif untuk memilih varian/opsi, jumlah pcs, dan menambahkan catatan ke kasir.
 class ProductOrderBottomSheet {
   ProductOrderBottomSheet._();
 
-  static void show(BuildContext context, ProductModel product) {
+  /// Mendeteksi apakah produk memiliki opsi khusus seperti Gyoza, Kopi Sarijan, atau Indomie.
+  static ProductOptionGroup? _getProductOptionGroup(ProductModel product) {
+    final name = product.name.toLowerCase();
+
+    // 1. GYOZA (Opsi Kukus dan Goreng)
+    if (name.contains('gyoza')) {
+      return const ProductOptionGroup(
+        title: 'Pilihan Penyajian',
+        icon: Icons.restaurant_menu_rounded,
+        options: [
+          ProductVariantOption(label: 'Goreng', subtitle: 'Renyah & gurih'),
+          ProductVariantOption(label: 'Kukus', subtitle: 'Lembut & juicy'),
+        ],
+        defaultIndex: 0,
+      );
+    }
+
+    // 2. KOPI HITAM SARIJAN (Opsi Gula dan Tanpa Gula)
+    if (name.contains('kopi hitam')) {
+      return const ProductOptionGroup(
+        title: 'Pilihan Gula',
+        icon: Icons.coffee_rounded,
+        options: [
+          ProductVariantOption(label: 'Tanpa Gula', additionalPrice: 0),
+          ProductVariantOption(
+            label: 'Gula',
+            additionalPrice: 2000,
+            subtitle: '+Rp 2.000',
+          ),
+        ],
+        defaultIndex: 0,
+      );
+    }
+
+    // 3. KOPI SUSU SARIJAN (Opsi Gula dan Tanpa Gula)
+    if (name.contains('kopi susu')) {
+      return const ProductOptionGroup(
+        title: 'Pilihan Gula',
+        icon: Icons.coffee_rounded,
+        options: [
+          ProductVariantOption(label: 'Tanpa Gula', additionalPrice: 0),
+          ProductVariantOption(
+            label: 'Gula',
+            additionalPrice: 1000,
+            subtitle: '+Rp 1.000',
+          ),
+        ],
+        defaultIndex: 0,
+      );
+    }
+
+    // 4. INDOMIE GORENG & INDOMIE NYEMEK (Opsi Kepedasan Level 1 s/d 3, kelipatan 1k)
+    if (name.contains('indomie')) {
+      return const ProductOptionGroup(
+        title: 'Tingkat Kepedasan',
+        icon: Icons.local_fire_department_rounded,
+        options: [
+          ProductVariantOption(label: 'Ori (Tidak Pedas)', additionalPrice: 0),
+          ProductVariantOption(
+            label: 'Level 1',
+            additionalPrice: 1000,
+            subtitle: '+Rp 1.000',
+          ),
+          ProductVariantOption(
+            label: 'Level 2',
+            additionalPrice: 2000,
+            subtitle: '+Rp 2.000',
+          ),
+          ProductVariantOption(
+            label: 'Level 3',
+            additionalPrice: 3000,
+            subtitle: '+Rp 3.000',
+          ),
+        ],
+        defaultIndex: 0,
+      );
+    }
+
+    return null;
+  }
+
+  /// Mendeteksi apakah produk merupakan kategori makanan atau snack yang memiliki opsi Take Away (+Rp 1.000).
+  static bool _isFoodProduct(ProductModel product) {
+    final cat = product.category.toLowerCase();
+    final sub = (product.subcategory ?? '').toLowerCase();
+    final n = product.name.toLowerCase();
+
+    return cat.contains('makan') ||
+        cat.contains('food') ||
+        cat.contains('snack') ||
+        sub.contains('makan') ||
+        sub.contains('goreng') ||
+        sub.contains('nyemek') ||
+        sub.contains('paket') ||
+        sub.contains('camilan') ||
+        sub.contains('add-ons') ||
+        n.contains('nasi') ||
+        n.contains('mie') ||
+        n.contains('indomie') ||
+        n.contains('gyoza') ||
+        n.contains('fries') ||
+        n.contains('toast') ||
+        n.contains('cireng') ||
+        n.contains('tahu');
+  }
+
+  static void show(
+    BuildContext context,
+    ProductModel product, {
+    String? initialOption,
+  }) {
     int quantity = 1;
     final noteController = TextEditingController();
+    final optionGroup = _getProductOptionGroup(product);
+    final isFood = _isFoodProduct(product);
+    bool isTakeAway = initialOption != null &&
+        (initialOption.toLowerCase().contains('take away') ||
+            initialOption.toLowerCase().contains('takeaway') ||
+            initialOption.toLowerCase().contains('bungkus'));
+
+    int selectedOptionIndex = optionGroup?.defaultIndex ?? 0;
+    if (optionGroup != null && initialOption != null) {
+      final initialLower = initialOption.toLowerCase();
+      final matchIdx = optionGroup.options.indexWhere(
+        (opt) =>
+            opt.label.toLowerCase() == initialLower ||
+            opt.label.toLowerCase().contains(initialLower),
+      );
+      if (matchIdx != -1) {
+        selectedOptionIndex = matchIdx;
+      }
+    }
 
     showModalBottomSheet<void>(
       context: context,
@@ -25,7 +182,15 @@ class ProductOrderBottomSheet {
       builder: (sheetCtx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final totalPrice = product.price * quantity;
+            final currentOption = optionGroup != null && optionGroup.options.isNotEmpty
+                ? optionGroup.options[
+                    selectedOptionIndex.clamp(0, optionGroup.options.length - 1)]
+                : null;
+
+            final packagingPrice = (isFood && isTakeAway) ? 1000 : 0;
+            final extraPrice = (currentOption?.additionalPrice ?? 0) + packagingPrice;
+            final unitPrice = product.price + extraPrice;
+            final totalPrice = unitPrice * quantity;
 
             return SafeArea(
               child: Padding(
@@ -55,6 +220,7 @@ class ProductOrderBottomSheet {
 
                       // Info Produk: Gambar, Nama, Kategori, Harga
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(14),
@@ -70,7 +236,7 @@ class ProductOrderBottomSheet {
                                     Container(
                                   color: AppColors.cardBgColor,
                                   child: const Icon(
-                                    Icons.coffee_rounded,
+                                    Icons.restaurant_rounded,
                                     color: AppColors.primaryBrown,
                                   ),
                                 ),
@@ -83,16 +249,14 @@ class ProductOrderBottomSheet {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  product.tag != null
-                                      ? '${product.name} (${product.tag})'
-                                      : product.name,
+                                  product.name,
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.darkText,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 3),
                                 Text(
                                   product.subcategory ?? product.category,
                                   style: const TextStyle(
@@ -101,13 +265,38 @@ class ProductOrderBottomSheet {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  product.formattedPrice,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.darkBrown,
-                                  ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      AppFormatters.formatRupiah(unitPrice),
+                                      style: const TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.darkBrown,
+                                      ),
+                                    ),
+                                    if (extraPrice > 0) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryBrown
+                                              .withOpacity(0.08),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '+${AppFormatters.formatRupiah(extraPrice)}',
+                                          style: const TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primaryBrown,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ],
                             ),
@@ -120,10 +309,308 @@ class ProductOrderBottomSheet {
                         Text(
                           product.description,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 12.5,
                             color: AppColors.secondaryText,
-                            height: 1.4,
+                            height: 1.35,
                           ),
+                        ),
+                      ],
+
+                      // ── PILIHAN VARIAN / OPSI PRODUK (Gyoza, Sarijan, Indomie) ──
+                      if (optionGroup != null &&
+                          optionGroup.options.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Divider(color: Colors.grey.shade200, height: 1),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Icon(
+                              optionGroup.icon,
+                              size: 18,
+                              color: AppColors.primaryBrown,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              optionGroup.title,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkText,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              '(Wajib pilih)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.secondaryText,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: List.generate(optionGroup.options.length,
+                              (idx) {
+                            final opt = optionGroup.options[idx];
+                            final isSelected = idx == selectedOptionIndex;
+
+                            return InkWell(
+                              onTap: () {
+                                setSheetState(() {
+                                  selectedOptionIndex = idx;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.primaryBrown
+                                      : const Color(0xFFFAF7F2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primaryBrown
+                                        : AppColors.inputBorderColor,
+                                    width: isSelected ? 1.5 : 1.0,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: AppColors.primaryBrown
+                                                .withOpacity(0.25),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          )
+                                        ]
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isSelected) ...[
+                                      const Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 15,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    Text(
+                                      opt.label,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.w500,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.darkText,
+                                      ),
+                                    ),
+                                    if (opt.additionalPrice > 0) ...[
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        ' (+${AppFormatters.formatRupiah(opt.additionalPrice)})',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: isSelected
+                                              ? FontWeight.bold
+                                              : FontWeight.w600,
+                                          color: isSelected
+                                              ? Colors.white.withOpacity(0.95)
+                                              : AppColors.primaryBrown,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+
+                      // ── PILIHAN KONSUMSI / PACKAGING KHUSUS MAKANAN (Dine In / Take Away +Rp 1.000) ──
+                      if (isFood) ...[
+                        const SizedBox(height: 16),
+                        Divider(color: Colors.grey.shade200, height: 1),
+                        const SizedBox(height: 14),
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.takeout_dining_rounded,
+                              size: 18,
+                              color: AppColors.primaryBrown,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Pilihan Penyajian Makanan',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkText,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            // Dine In
+                            Expanded(
+                              child: InkWell(
+                                onTap: () {
+                                  setSheetState(() {
+                                    isTakeAway = false;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                    horizontal: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: !isTakeAway
+                                        ? AppColors.primaryBrown
+                                        : const Color(0xFFFAF7F2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: !isTakeAway
+                                          ? AppColors.primaryBrown
+                                          : AppColors.inputBorderColor,
+                                      width: !isTakeAway ? 1.5 : 1.0,
+                                    ),
+                                    boxShadow: !isTakeAway
+                                        ? [
+                                            BoxShadow(
+                                              color: AppColors.primaryBrown
+                                                  .withOpacity(0.25),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            )
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.restaurant_rounded,
+                                        size: 16,
+                                        color: !isTakeAway
+                                            ? Colors.white
+                                            : AppColors.darkBrown,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Dine In',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: !isTakeAway
+                                              ? FontWeight.bold
+                                              : FontWeight.w600,
+                                          color: !isTakeAway
+                                              ? Colors.white
+                                              : AppColors.darkText,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Take Away (+Rp 1.000)
+                            Expanded(
+                              child: InkWell(
+                                onTap: () {
+                                  setSheetState(() {
+                                    isTakeAway = true;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                    horizontal: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isTakeAway
+                                        ? AppColors.primaryBrown
+                                        : const Color(0xFFFAF7F2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isTakeAway
+                                          ? AppColors.primaryBrown
+                                          : AppColors.inputBorderColor,
+                                      width: isTakeAway ? 1.5 : 1.0,
+                                    ),
+                                    boxShadow: isTakeAway
+                                        ? [
+                                            BoxShadow(
+                                              color: AppColors.primaryBrown
+                                                  .withOpacity(0.25),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            )
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.shopping_bag_outlined,
+                                        size: 16,
+                                        color: isTakeAway
+                                            ? Colors.white
+                                            : AppColors.darkBrown,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Take Away',
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: isTakeAway
+                                                  ? FontWeight.bold
+                                                  : FontWeight.w600,
+                                              color: isTakeAway
+                                                  ? Colors.white
+                                                  : AppColors.darkText,
+                                            ),
+                                          ),
+                                          Text(
+                                            '+Rp 1.000',
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: isTakeAway
+                                                  ? const Color(0xFFFFE082)
+                                                  : AppColors.primaryBrown,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
 
@@ -161,9 +648,11 @@ class ProductOrderBottomSheet {
                             decoration: BoxDecoration(
                               color: const Color(0xFFF9F6F0),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.inputBorderColor),
+                              border:
+                                  Border.all(color: AppColors.inputBorderColor),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 4),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -181,7 +670,9 @@ class ProductOrderBottomSheet {
                                     width: 32,
                                     height: 32,
                                     decoration: BoxDecoration(
-                                      color: quantity > 1 ? Colors.white : Colors.transparent,
+                                      color: quantity > 1
+                                          ? Colors.white
+                                          : Colors.transparent,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: quantity > 1
@@ -201,7 +692,8 @@ class ProductOrderBottomSheet {
 
                                 // Jumlah Pcs
                                 Container(
-                                  constraints: const BoxConstraints(minWidth: 44),
+                                  constraints:
+                                      const BoxConstraints(minWidth: 44),
                                   alignment: Alignment.center,
                                   child: Text(
                                     '$quantity pcs',
@@ -277,7 +769,8 @@ class ProductOrderBottomSheet {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AppColors.inputBorderColor),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         child: TextField(
                           controller: noteController,
                           maxLines: 2,
@@ -286,7 +779,8 @@ class ProductOrderBottomSheet {
                             color: AppColors.darkText,
                           ),
                           decoration: const InputDecoration(
-                            hintText: 'Contoh: Kurangi gula, es dipisah, ekstra sedotan...',
+                            hintText:
+                                'Contoh: Es dipisah, sambal banyakin, ekstra sedotan...',
                             hintStyle: TextStyle(
                               fontSize: 12,
                               color: AppColors.hintColor,
@@ -307,25 +801,45 @@ class ProductOrderBottomSheet {
                           onPressed: () {
                             Navigator.pop(sheetCtx);
                             final note = noteController.text.trim();
+                            final chosenOption = currentOption?.label;
+
+                            String finalOption;
+                            if (isFood) {
+                              final packagingStr = isTakeAway ? 'Take Away' : 'Dine In';
+                              if (chosenOption != null && chosenOption.isNotEmpty) {
+                                finalOption = '$chosenOption • $packagingStr';
+                              } else {
+                                finalOption = packagingStr;
+                              }
+                            } else {
+                              finalOption = chosenOption ?? (product.tag ?? (product.subcategory ?? 'Regular'));
+                            }
+
                             CartService.instance.addProduct(
                               product,
+                              options: finalOption,
+                              customPrice: unitPrice,
                               quantity: quantity,
                               note: note,
                             );
+
+                            final optionSuffix = ' ($finalOption)';
+
                             ScaffoldMessenger.of(context).hideCurrentSnackBar();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
                                   quantity > 1
-                                      ? '$quantity pcs ${product.name} masuk ke keranjang belanja!'
-                                      : '${product.name} masuk ke keranjang belanja!',
+                                      ? '$quantity pcs ${product.name}$optionSuffix masuk ke keranjang belanja!'
+                                      : '${product.name}$optionSuffix masuk ke keranjang belanja!',
                                 ),
                                 backgroundColor: AppColors.primaryBrown,
                                 duration: const Duration(seconds: 2),
                                 action: SnackBarAction(
                                   label: 'Lihat',
                                   textColor: AppColors.buttonYellow,
-                                  onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
+                                  onPressed: () => Navigator.pushNamed(
+                                      context, AppRoutes.cart),
                                 ),
                               ),
                             );

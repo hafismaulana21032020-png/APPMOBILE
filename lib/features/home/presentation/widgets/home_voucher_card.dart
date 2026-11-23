@@ -4,17 +4,19 @@ import '../../../../core/theme/app_colors.dart';
 class HomeVoucherCard extends StatelessWidget {
   final bool isApplied;
   final VoidCallback onApplyTap;
+  final double? width;
 
   const HomeVoucherCard({
     super.key,
     required this.isApplied,
     required this.onApplyTap,
+    this.width,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
+      width: width ?? double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.cardBgColor,

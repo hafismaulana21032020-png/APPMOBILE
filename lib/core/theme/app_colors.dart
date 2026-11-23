@@ -19,5 +19,8 @@ class AppColors {
   static const Color promoBadgeColor = Color(0xFFF5C754);
   static const Color buttonYellow = Color(0xFFFDE9B6);
   static const Color badgeYellow = Color(0xFFF5C754);
+  static const Color accentGold = Color(0xFFF5C754);
+  static const Color accentLightBrown = Color(0xFFD4A373);
+  static const Color borderLight = Color(0xFFEDE8E3);
   static const Color chipInactiveBg = Colors.white;
 }

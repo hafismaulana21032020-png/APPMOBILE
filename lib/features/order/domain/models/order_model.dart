@@ -74,6 +74,7 @@ class OrderModel {
   final String baristaName;
   final String baristaNote;
   final Map<OrderStatus, DateTime> statusTimes;
+  final Map<String, dynamic>? points;
 
   const OrderModel({
     required this.id,
@@ -91,6 +92,7 @@ class OrderModel {
     this.baristaNote =
         'Biji kopi Sarijan baru diekstrak, sedang menuang susu segar creamy.',
     this.statusTimes = const {},
+    this.points,
   });
 
   String get formattedTotalPrice => AppFormatters.formatRupiah(totalPrice);
@@ -112,6 +114,7 @@ class OrderModel {
     String? baristaName,
     String? baristaNote,
     Map<OrderStatus, DateTime>? statusTimes,
+    Map<String, dynamic>? points,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -128,6 +131,7 @@ class OrderModel {
       baristaName: baristaName ?? this.baristaName,
       baristaNote: baristaNote ?? this.baristaNote,
       statusTimes: statusTimes ?? this.statusTimes,
+      points: points ?? this.points,
     );
   }
 }

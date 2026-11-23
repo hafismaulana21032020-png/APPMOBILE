@@ -5,8 +5,6 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/app_formatters.dart';
-import '../../../cart/domain/services/cart_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
 import 'product_order_bottom_sheet.dart';
@@ -47,6 +45,16 @@ class _MenuTabContentState extends State<MenuTabContent> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory;
+  }
+
+  @override
+  void didUpdateWidget(covariant MenuTabContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCategory != oldWidget.initialCategory) {
+      setState(() {
+        _selectedCategory = widget.initialCategory;
+      });
+    }
   }
 
   @override
@@ -91,31 +99,6 @@ class _MenuTabContentState extends State<MenuTabContent> {
       default:
         return null;
     }
-  }
-
-  void _addProductToCart(ProductModel product, {int quantity = 1, String? note}) {
-    CartService.instance.addProduct(
-      product,
-      quantity: quantity,
-      note: note,
-    );
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          quantity > 1
-              ? '$quantity pcs ${product.name} masuk ke keranjang belanja!'
-              : '${product.name} masuk ke keranjang belanja!',
-        ),
-        backgroundColor: AppColors.primaryBrown,
-        duration: const Duration(seconds: 2),
-        action: SnackBarAction(
-          label: 'Lihat',
-          textColor: AppColors.buttonYellow,
-          onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
-        ),
-      ),
-    );
   }
 
   void _showProductDetailSheet(ProductModel product) {

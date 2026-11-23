@@ -104,6 +104,17 @@ class ApiService {
     return _get('/profile/points');
   }
 
+  Future<Map<String, dynamic>> getMyPoints([String? type]) async {
+    final queryStr = (type != null && type.isNotEmpty && type != 'Semua')
+        ? '?type=$type'
+        : '';
+    return _get('/points/me$queryStr');
+  }
+
+  Future<Map<String, dynamic>> previewPoints(int subtotal) async {
+    return _post('/points/preview', {'subtotal': subtotal});
+  }
+
   // ===========================================================================
   // 3. PRODUCTS & CATALOG
   // ===========================================================================
@@ -168,13 +179,29 @@ class ApiService {
   }
 
   // ===========================================================================
-  // 6. AI BARISTA CHATBOT
+  // 6. AI BARISTA CHATBOT (GEMINI API & RECOMMENDATIONS)
   // ===========================================================================
 
+  Future<Map<String, dynamic>> chatWithBarista({
+    required String message,
+    List<Map<String, String>> history = const [],
+  }) async {
+    return _post(
+      '/ai-chat/chat',
+      {
+        'message': message,
+        'history': history,
+      },
+      timeoutDuration: const Duration(seconds: 45),
+    );
+  }
+
+  Future<Map<String, dynamic>> getBaristaRecommendations() async {
+    return _get('/ai-chat/recommendations');
+  }
+
   Future<Map<String, dynamic>> sendAiChatMessage(String message) async {
-    return _post('/ai-chat/message', {
-      'message': message,
-    });
+    return chatWithBarista(message: message);
   }
 
   // ===========================================================================
@@ -219,12 +246,16 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> _post(
+    String path,
+    Map<String, dynamic> data, {
+    Duration timeoutDuration = const Duration(seconds: 15),
+  }) async {
     try {
       final uri = Uri.parse('$baseUrl$path');
       final response = await http
           .post(uri, headers: _buildHeaders(), body: jsonEncode(data))
-          .timeout(const Duration(seconds: 8));
+          .timeout(timeoutDuration);
       final body = utf8.decode(response.bodyBytes);
       return jsonDecode(body) as Map<String, dynamic>;
     } catch (e) {
@@ -236,7 +267,7 @@ class ApiService {
           final fallbackUri = Uri.parse('$androidFallbackUrl$path');
           final response = await http
               .post(fallbackUri, headers: _buildHeaders(), body: jsonEncode(data))
-              .timeout(const Duration(seconds: 8));
+              .timeout(timeoutDuration);
           customBaseUrl = androidFallbackUrl;
           final body = utf8.decode(response.bodyBytes);
           return jsonDecode(body) as Map<String, dynamic>;

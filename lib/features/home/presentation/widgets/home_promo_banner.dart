@@ -97,7 +97,7 @@ class _HomePromoBannerState extends State<HomePromoBanner> {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: 154,
+      height: 158,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
       ),
@@ -120,10 +120,11 @@ class _HomePromoBannerState extends State<HomePromoBanner> {
                 return Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Background Image
+                    // Background Image dengan framing dan alignment yang pas agar logo tidak terpotong
                     Image.asset(
                       slide.imagePath,
                       fit: BoxFit.cover,
+                      alignment: Alignment.center,
                       errorBuilder: (context, error, stackTrace) => Container(
                         color: AppColors.primaryBrown,
                         child: const Center(
@@ -133,14 +134,14 @@ class _HomePromoBannerState extends State<HomePromoBanner> {
                       ),
                     ),
 
-                    // Gradient Overlay
+                    // Gradient Overlay lembut agar logo & teks terbaca jernih
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withValues(alpha: 0.25),
+                            Colors.black.withValues(alpha: 0.15),
                             Colors.black.withValues(alpha: 0.70),
                           ],
                         ),

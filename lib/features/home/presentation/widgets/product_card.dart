@@ -16,20 +16,25 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onAddToCart,
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+            border: Border.all(color: AppColors.inputBorderColor, width: 1.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Gambar Produk
@@ -121,6 +126,8 @@ class ProductCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
