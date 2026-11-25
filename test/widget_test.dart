@@ -6,9 +6,9 @@ import 'package:breakfree_app/core/utils/app_formatters.dart';
 import 'package:breakfree_app/core/utils/app_validators.dart';
 import 'package:breakfree_app/features/account/domain/services/user_service.dart';
 import 'package:breakfree_app/features/account/presentation/pages/account_page.dart';
+import 'package:breakfree_app/features/account/presentation/pages/notifications_page.dart';
 import 'package:breakfree_app/features/account/presentation/pages/profile_page.dart';
 import 'package:breakfree_app/features/account/presentation/pages/settings_page.dart';
-import 'package:breakfree_app/features/account/presentation/pages/notifications_page.dart';
 import 'package:breakfree_app/features/account/presentation/widgets/account_stats_row.dart';
 import 'package:breakfree_app/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:breakfree_app/features/auth/presentation/pages/login_page.dart';
@@ -16,23 +16,28 @@ import 'package:breakfree_app/features/auth/presentation/pages/register_page.dar
 import 'package:breakfree_app/features/cart/domain/services/cart_service.dart';
 import 'package:breakfree_app/features/cart/presentation/pages/cart_page.dart';
 import 'package:breakfree_app/features/home/data/menu_data.dart';
+import 'package:breakfree_app/features/home/domain/services/ai_chat_service.dart';
+import 'package:breakfree_app/features/home/domain/services/menu_service.dart';
 import 'package:breakfree_app/features/home/presentation/controllers/home_tab_controller.dart';
+import 'package:breakfree_app/features/home/presentation/pages/ai_chat_page.dart';
 import 'package:breakfree_app/features/home/presentation/pages/coffee_menu_page.dart';
 import 'package:breakfree_app/features/home/presentation/pages/food_menu_page.dart';
 import 'package:breakfree_app/features/home/presentation/pages/home_page.dart';
 import 'package:breakfree_app/features/home/presentation/pages/menu_page.dart';
 import 'package:breakfree_app/features/home/presentation/pages/non_coffee_menu_page.dart';
 import 'package:breakfree_app/features/home/presentation/pages/snack_menu_page.dart';
-import 'package:breakfree_app/features/home/presentation/pages/ai_chat_page.dart';
-import 'package:breakfree_app/features/home/domain/services/ai_chat_service.dart';
 import 'package:breakfree_app/features/home/presentation/widgets/ai_assistant_sheet.dart';
 import 'package:breakfree_app/features/home/presentation/widgets/home_promo_banner.dart';
 import 'package:breakfree_app/features/order/domain/services/order_service.dart';
 import 'package:breakfree_app/features/order/presentation/pages/order_tracking_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
+
   group('Formatters and Validators', () {
     test('AppFormatters handles thousands and million+ values accurately', () {
       expect(AppFormatters.formatThousands(0), '0');
@@ -54,6 +59,27 @@ void main() {
       expect(AppValidators.isStrongPassword('short1'), isFalse);
       expect(AppValidators.isStrongPassword('onlyletters'), isFalse);
       expect(AppValidators.isStrongPassword('12345678'), isFalse);
+
+      expect(
+        AppValidators.evaluatePasswordSimilarity('kopi1234', 'kopi1234'),
+        PasswordSimilarity.identical,
+      );
+      expect(
+        AppValidators.evaluatePasswordSimilarity('kopi1234', 'kopi1235'),
+        PasswordSimilarity.similar,
+      );
+      expect(
+        AppValidators.evaluatePasswordSimilarity('kopi1234', 'Kopi1234'),
+        PasswordSimilarity.similar,
+      );
+      expect(
+        AppValidators.evaluatePasswordSimilarity('kopi1234', 'kopi1234!'),
+        PasswordSimilarity.similar,
+      );
+      expect(
+        AppValidators.evaluatePasswordSimilarity('kopi1234', 'MatchaSegar99'),
+        PasswordSimilarity.distinct,
+      );
     });
   });
 
@@ -85,6 +111,7 @@ void main() {
           tester.view.physicalSize = size;
           tester.view.devicePixelRatio = 1.0;
           addTearDown(() {
+            MenuService.instance.stopAutoSync();
             tester.view.resetPhysicalSize();
             tester.view.resetDevicePixelRatio();
           });
@@ -97,6 +124,7 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
+          MenuService.instance.stopAutoSync();
         });
       }
     }
@@ -124,19 +152,14 @@ void main() {
       expect(find.text('2.800'), findsNothing);
     });
 
-    testWidgets('RegisterPage validates inputs and navigates to HomePage on success',
+    testWidgets('RegisterPage validates inputs and terms checkbox before submit',
         (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
-        UserService.instance.updateProfile(
-          name: 'HAFIZ MAULANA',
-          email: 'hafiz.maulana@gmail.com',
-          phone: '0812 •••• 7890',
-          birthDate: '18 Mei 2000',
-        );
+        UserService.instance.clear();
       });
 
       await tester.pumpWidget(
@@ -148,22 +171,47 @@ void main() {
       );
 
       final fields = find.byType(TextField);
+      expect(fields, findsNWidgets(5));
+
       await tester.enterText(fields.at(0), 'Budi Santoso');
       await tester.enterText(fields.at(1), 'budi@breakfree.id');
-      await tester.enterText(fields.at(2), 'kopi1234');
-      await tester.enterText(fields.at(3), 'kopi1234');
-
-      await tester.ensureVisible(find.byType(Checkbox));
-      await tester.tap(find.byType(Checkbox));
-      await tester.pump();
+      await tester.enterText(fields.at(2), '081234567890');
+      await tester.enterText(fields.at(3), 'lemah');
+      await tester.enterText(fields.at(4), 'lemah');
 
       await tester.ensureVisible(find.text('Daftar'));
       await tester.tap(find.text('Daftar'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(HomePage), findsOneWidget);
-      expect(UserService.instance.name, 'BUDI SANTOSO');
-      expect(UserService.instance.email, 'budi@breakfree.id');
+      expect(
+        find.text('Kata sandi minimal 8 karakter dan mengandung huruf serta angka'),
+        findsOneWidget,
+      );
+
+      await tester.enterText(fields.at(3), 'kopi1234');
+      await tester.enterText(fields.at(4), 'kopi9999');
+      await tester.ensureVisible(find.text('Daftar'));
+      await tester.tap(find.text('Daftar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Konfirmasi kata sandi tidak cocok'), findsOneWidget);
+
+      await tester.enterText(fields.at(4), 'kopi1234');
+      await tester.ensureVisible(find.text('Daftar'));
+      await tester.tap(find.text('Daftar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Silakan setujui Syarat dan Ketentuan terlebih dahulu'),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(find.byType(Checkbox));
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+
+      final checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
+      expect(checkbox.value, isTrue);
     });
 
     testWidgets('HomePage search finds products across categories',
@@ -171,6 +219,7 @@ void main() {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
+        MenuService.instance.stopAutoSync();
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
@@ -182,22 +231,28 @@ void main() {
           home: const HomePage(),
         ),
       );
+      await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Indomie Goreng');
       await tester.pumpAndSettle();
 
       expect(find.text('Indomie Goreng'), findsWidgets);
+      MenuService.instance.stopAutoSync();
     });
 
-    testWidgets('CartPage rejects spoofed promo code and applies KOPIKAMPUS',
+    testWidgets('CartPage rejects invalid promo code and supports BREAK20 offline fallback',
         (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
+      CartService.instance.clear();
+      // Tambah item agar subtotal >= Rp 30.000 (syarat minimum BREAK20)
+      for (var i = 0; i < 6; i++) {
+        CartService.instance.addProduct(breakfreeMenuItems.first);
+      }
       addTearDown(() {
+        CartService.instance.clear();
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
-        CartService.instance.clear();
-        CartService.instance.addProduct(breakfreeMenuItems.first);
       });
 
       await tester.pumpWidget(
@@ -207,13 +262,25 @@ void main() {
           home: const CartPage(),
         ),
       );
+      await tester.pumpAndSettle();
 
-      final promoField = find.byType(TextField);
+      final promoField = find.byType(TextField).first;
+      await tester.ensureVisible(promoField);
       await tester.enterText(promoField, 'FAKEKOPIKAMPUS');
+      await tester.ensureVisible(find.text('Terapkan'));
       await tester.tap(find.text('Terapkan'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.text('Kode promo tidak valid'), findsOneWidget);
+      expect(CartService.instance.appliedPromoCode, isNull);
+      expect(find.byType(SnackBar), findsOneWidget);
+
+      await tester.ensureVisible(promoField);
+      await tester.enterText(promoField, 'BREAK20');
+      await tester.ensureVisible(find.text('Terapkan'));
+      await tester.tap(find.text('Terapkan'));
+      await tester.pumpAndSettle();
+
+      expect(CartService.instance.appliedPromoCode, 'BREAK20');
     });
 
     testWidgets('HomePromoBanner uses homePromoBanner asset', (tester) async {
@@ -232,11 +299,12 @@ void main() {
     });
 
     testWidgets(
-        'HomePage renders new layout and smoothly switches to Daftar menu on Menu tap',
+        'HomePage renders layout, handles voucher tap, and switches to Daftar menu on Menu tap',
         (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
+        MenuService.instance.stopAutoSync();
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
         HomeTabController.instance.resetToHome();
@@ -252,18 +320,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify new Home content
-      expect(find.text('Terpopuler di Malang'), findsOneWidget);
+      // Verify Home content
+      expect(find.text('Terpopuler di BreakFree'), findsOneWidget);
       expect(find.text('Diskon 20% buat jedamu'), findsOneWidget);
       expect(find.text('Kode: BREAK20'), findsOneWidget);
       expect(find.text('2 Ice Kopi Susu • Rp28.000'), findsOneWidget);
       expect(find.text('Apa itu BreakFree?'), findsOneWidget);
 
-      // Apply BREAK20 voucher
+      // Tap Pakai when backend promos aren't fetched
+      await tester.ensureVisible(find.text('Pakai'));
       await tester.tap(find.text('Pakai'));
       await tester.pumpAndSettle();
-      expect(CartService.instance.appliedPromoCode, 'BREAK20');
-      expect(find.text('Dipakai'), findsOneWidget);
+      expect(
+        find.text('Saat ini belum ada promo voucher yang aktif.'),
+        findsOneWidget,
+      );
 
       // Tap Menu icon in bottom nav bar and verify smooth transition to Daftar menu
       await tester.tap(find.text('Menu'));
@@ -279,6 +350,7 @@ void main() {
       await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
       expect(find.text('Apa itu BreakFree?'), findsOneWidget);
+      MenuService.instance.stopAutoSync();
     });
 
     testWidgets('AI Chat Service and AiChatPage respond intelligently to queries',
@@ -312,10 +384,10 @@ void main() {
       // Check header and greeting
       expect(find.text('Barista AI BreakFree'), findsWidgets);
       expect(find.text('Online'), findsWidgets);
-      expect(find.text('☕ Kopi Manis & Creamy'), findsOneWidget);
+      expect(find.text('Kopi Manis & Creamy'), findsOneWidget);
 
       // Tap suggestion chip for sweet coffee
-      await tester.tap(find.text('☕ Kopi Manis & Creamy'));
+      await tester.tap(find.text('Kopi Manis & Creamy'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
@@ -379,19 +451,16 @@ void main() {
       expect(find.text('Barista AI BreakFree'), findsWidgets);
     });
 
-    testWidgets('OrderService advances status and OrderTrackingPage updates live',
+    testWidgets('OrderTrackingPage renders empty state and switches between Aktif and Riwayat tabs',
         (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
+      OrderService.instance.clearAll();
       addTearDown(() {
+        OrderService.instance.clearAll();
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
-
-      // Verify active order exists
-      final orderService = OrderService.instance;
-      expect(orderService.activeOrder, isNotNull);
-      expect(orderService.activeOrder!.queueNumber.isNotEmpty, isTrue);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -402,40 +471,26 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify header, queue code, and live stepper elements
       expect(find.text('Lacak Pesanan'), findsOneWidget);
-      expect(find.text('LIVE TRACKING'), findsOneWidget);
-      expect(find.text('NOMOR ANTREAN'), findsOneWidget);
-      expect(find.text('Tahapan Pesanan'), findsOneWidget);
-      expect(find.text('Rincian Menu'), findsOneWidget);
-
-      // Verify advance simulation button transitions state
-      final initialStatusTitle = orderService.activeOrder!.status.title;
-      expect(find.text(initialStatusTitle), findsWidgets);
-
-      await tester.tap(find.text('Simulasi Status Berikutnya'));
-      await tester.pumpAndSettle();
-
-      final updatedStatusTitle = orderService.activeOrder!.status.title;
-      expect(find.text(updatedStatusTitle), findsWidgets);
+      expect(find.text('Belum Ada Pesanan Aktif'), findsOneWidget);
+      expect(find.text('Lihat Menu Kopi & Makanan'), findsOneWidget);
 
       // Switch to Riwayat tab
       await tester.tap(find.textContaining('Riwayat'));
       await tester.pumpAndSettle();
-
-      expect(find.textContaining('Item'), findsWidgets);
-      expect(find.text('Selesai'), findsWidgets);
+      expect(find.text('Belum ada riwayat transaksi.'), findsOneWidget);
 
       // Switch back to Pesanan Aktif
       await tester.tap(find.text('Pesanan Aktif'));
       await tester.pumpAndSettle();
-      expect(find.text('LIVE TRACKING'), findsOneWidget);
+      expect(find.text('Belum Ada Pesanan Aktif'), findsOneWidget);
     });
 
     testWidgets('AccountPage Lacak Pesanan navigates to OrderTrackingPage',
         (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
+      OrderService.instance.clearAll();
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
@@ -456,7 +511,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(OrderTrackingPage), findsOneWidget);
-      expect(find.text('LIVE TRACKING'), findsOneWidget);
+      expect(find.text('Belum Ada Pesanan Aktif'), findsOneWidget);
     });
 
     testWidgets('SettingsPage menus are functional on tap', (tester) async {
@@ -492,24 +547,23 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Gelap'), findsOneWidget);
 
-      // 3. Test Ubah kata sandi sheet
+      // 3. Test Ubah kata sandi sheet Step 1 verification
       await tester.tap(find.text('Ubah kata sandi'));
       await tester.pumpAndSettle();
-      expect(find.text('Ubah Kata Sandi'), findsOneWidget);
-      expect(find.text('Simpan Kata Sandi Baru'), findsOneWidget);
+      expect(find.text('Verifikasi Kata Sandi Lama'), findsNWidgets(2));
+      expect(find.text('Kata Sandi Lama'), findsOneWidget);
+      expect(
+        find.text('Lupa kata sandi? Reset dengan Gmail (OTP)'),
+        findsOneWidget,
+      );
 
-      // Test validation
-      await tester.tap(find.text('Simpan Kata Sandi Baru'));
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Verifikasi Kata Sandi Lama'));
       await tester.pumpAndSettle();
-      expect(find.text('Kata sandi saat ini harus diisi.'), findsOneWidget);
+      expect(find.text('Kata sandi lama harus diisi.'), findsOneWidget);
 
-      final textFields = find.byType(TextField);
-      await tester.enterText(textFields.at(0), 'lama1234');
-      await tester.enterText(textFields.at(1), 'baru1234');
-      await tester.enterText(textFields.at(2), 'baru1234');
-      await tester.tap(find.text('Simpan Kata Sandi Baru'));
+      // Dismiss bottom sheet before continuing
+      Navigator.of(tester.element(find.text('Kata Sandi Lama'))).pop();
       await tester.pumpAndSettle();
-      expect(find.text('Kata sandi berhasil diperbarui!'), findsOneWidget);
 
       // 4. Test Kebijakan privasi sheet
       await tester.ensureVisible(find.text('Kebijakan privasi'));
@@ -582,6 +636,7 @@ void main() {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
+        MenuService.instance.stopAutoSync();
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
@@ -612,6 +667,7 @@ void main() {
 
       // Verifies it returned to HomePage
       expect(find.byType(HomePage), findsOneWidget);
+      MenuService.instance.stopAutoSync();
     });
 
     testWidgets('AccountPage header has no top notification button',
@@ -636,6 +692,118 @@ void main() {
       expect(find.text('Akun Saya'), findsOneWidget);
       // Verify no notification tooltip button in header
       expect(find.byTooltip('Notifikasi'), findsNothing);
+    });
+
+    testWidgets(
+        'SettingsPage Ubah kata sandi validates Step 2 and links ForgotPassword via Gmail',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      UserService.instance.setFromJson({
+        'name': 'BUDI SANTOSO',
+        'email': 'budi@gmail.com',
+        'hasPassword': false,
+      });
+      addTearDown(() {
+        UserService.instance.clear();
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const SettingsPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ubah kata sandi'));
+      await tester.pumpAndSettle();
+      // Akun Google tanpa password lama tetap wajib verifikasi OTP Gmail dulu (tidak langsung lompat ke sandi baru)
+      expect(find.text('Verifikasi via OTP Gmail'), findsOneWidget);
+      expect(find.text('Kirim & Verifikasi OTP via Gmail'), findsOneWidget);
+      expect(find.text('Kata Sandi Baru (min. 6 karakter)'), findsNothing);
+
+      // Verifikasi langsung Step 2 validasi kata sandi baru + similarity
+      Navigator.of(tester.element(find.text('Verifikasi via OTP Gmail'))).pop();
+      await tester.pumpAndSettle();
+      final settingsCtx = tester.element(find.byType(SettingsPage));
+      showVerifiedChangePasswordSheet(settingsCtx, skipVerificationForTest: true);
+      await tester.pumpAndSettle();
+      expect(find.text('Ubah Kata Sandi'), findsOneWidget);
+
+      final textFields = find.byType(TextField);
+      await tester.enterText(textFields.at(0), '123');
+      await tester.enterText(textFields.at(1), '123');
+      await tester.tap(find.text('Simpan Kata Sandi Baru'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kata sandi baru minimal 6 karakter.'), findsOneWidget);
+
+      await tester.enterText(textFields.at(0), 'baru1234');
+      await tester.enterText(textFields.at(1), 'beda1234');
+      await tester.tap(find.text('Simpan Kata Sandi Baru'));
+      await tester.pumpAndSettle();
+      expect(find.text('Konfirmasi kata sandi tidak cocok.'), findsOneWidget);
+
+      Navigator.of(tester.element(find.text('Ubah Kata Sandi'))).pop();
+      await tester.pumpAndSettle();
+
+      // Tap Ubah kata sandi untuk akun Google lagi & lanjut ke OTP Gmail
+      await tester.tap(find.text('Ubah kata sandi'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kirim & Verifikasi OTP via Gmail'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ForgotPasswordPage), findsOneWidget);
+      expect(find.text('budi@gmail.com'), findsOneWidget);
+    });
+
+    testWidgets(
+        'ProfilePage requires current password verification or Gmail reset before saving',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      UserService.instance.setFromJson({
+        'name': 'BUDI SANTOSO',
+        'email': 'budi@gmail.com',
+        'hasPassword': true,
+      });
+      addTearDown(() {
+        UserService.instance.clear();
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: const ProfilePage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Verifikasi Sekarang'), findsOneWidget);
+      expect(find.text('Ubah kata sandi akun'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Simpan perubahan'));
+      await tester.tap(find.text('Simpan perubahan'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Verifikasi Akun Dulu'), findsOneWidget);
+      expect(find.text('Kata Sandi Saat Ini'), findsOneWidget);
+      final dialogForgotLink = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Lupa kata sandi? Reset dengan Gmail'),
+      );
+      expect(dialogForgotLink, findsOneWidget);
+
+      await tester.tap(dialogForgotLink);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ForgotPasswordPage), findsOneWidget);
+      expect(find.text('budi@gmail.com'), findsOneWidget);
     });
   });
 }

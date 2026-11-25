@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service API Client untuk menghubungkan Flutter APPMOBILE
 /// langsung ke Backend Express terpadu (breakfree-backend).
@@ -9,12 +10,10 @@ class ApiService {
   ApiService._();
   static final ApiService instance = ApiService._();
 
+  static const String _tokenPrefsKey = 'breakfree_auth_token';
   static String? customBaseUrl;
 
   /// URL Base API Backend Express (Port default: 5000)
-  /// - Web / Windows Desktop: http://localhost:5000/api/v1/mobile
-  /// - Android Emulator: http://10.0.2.2:5000/api/v1/mobile
-  /// - Android Device Fisik / Jaringan LAN: http://192.168.68.104:5000/api/v1/mobile
   static String get baseUrl {
     if (customBaseUrl != null && customBaseUrl!.isNotEmpty) {
       return customBaseUrl!;
@@ -32,13 +31,40 @@ class ApiService {
 
   String? _authToken;
   String? get authToken => _authToken;
+  bool get hasToken => _authToken != null && _authToken!.isNotEmpty;
 
-  void setAuthToken(String? token) {
+  Future<void> loadSavedToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_tokenPrefsKey);
+      if (saved != null && saved.isNotEmpty) {
+        _authToken = saved;
+      }
+    } catch (e) {
+      debugPrint('ApiService loadSavedToken error: $e');
+    }
+  }
+
+  Future<void> setAuthToken(String? token) async {
     _authToken = token;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (token == null || token.isEmpty) {
+        await prefs.remove(_tokenPrefsKey);
+      } else {
+        await prefs.setString(_tokenPrefsKey, token);
+      }
+    } catch (e) {
+      debugPrint('ApiService setAuthToken error: $e');
+    }
+  }
+
+  Future<void> clearSession() async {
+    await setAuthToken(null);
   }
 
   // ===========================================================================
-  // 1. AUTHENTICATION (REGISTER, LOGIN, FORGOT PASSWORD)
+  // 1. AUTHENTICATION (REGISTER, LOGIN, GOOGLE SIGN-IN, FORGOT PASSWORD)
   // ===========================================================================
 
   Future<Map<String, dynamic>> login({
@@ -55,17 +81,44 @@ class ApiService {
     required String name,
     required String email,
     required String password,
+    String? phone,
   }) async {
-    return _post('/auth/register', {
+    final payload = <String, dynamic>{
       'name': name,
       'email': email,
       'password': password,
+    };
+    if (phone != null && phone.trim().isNotEmpty) {
+      payload['phone'] = phone.trim();
+    }
+    return _post('/auth/register', payload);
+  }
+
+  Future<Map<String, dynamic>> googleLogin(String idToken) async {
+    return _post('/auth/google', {
+      'idToken': idToken,
     });
   }
 
+  Future<Map<String, dynamic>> getAuthMe() async {
+    return _get('/auth/me');
+  }
+
   Future<Map<String, dynamic>> forgotPassword(String email) async {
-    return _post('/auth/forgot-password', {
+    return _post(
+      '/auth/forgot-password',
+      {'email': email},
+      timeoutDuration: const Duration(seconds: 30),
+    );
+  }
+
+  Future<Map<String, dynamic>> verifyResetOtp({
+    required String email,
+    required String otp,
+  }) async {
+    return _post('/auth/verify-otp', {
       'email': email,
+      'otp': otp,
     });
   }
 
@@ -73,31 +126,71 @@ class ApiService {
     required String email,
     required String otp,
     required String newPassword,
+    bool allowSimilar = false,
   }) async {
     return _post('/auth/reset-password', {
       'email': email,
       'otp': otp,
       'newPassword': newPassword,
+      'allowSimilar': allowSimilar,
     });
   }
 
   // ===========================================================================
-  // 2. PROFILE & CASHBACK POINTS
+  // 2. PROFILE, NOTIFICATIONS, & CASHBACK POINTS
   // ===========================================================================
 
   Future<Map<String, dynamic>> getProfile() async {
     return _get('/profile/me');
   }
 
+  Future<Map<String, dynamic>> verifyCurrentPassword(
+    String currentPassword,
+  ) async {
+    return _post('/profile/verify-password', {
+      'currentPassword': currentPassword,
+    });
+  }
+
   Future<Map<String, dynamic>> updateProfile({
-    required String name,
+    String? name,
     String? phone,
     String? birthDate,
+    String? avatarUrl,
+    String? currentPassword,
   }) async {
-    final payload = <String, dynamic>{'name': name};
-    if (phone != null) payload['phone'] = phone;
-    if (birthDate != null) payload['birthDate'] = birthDate;
+    final payload = <String, dynamic>{};
+    if (name != null) payload['name'] = name;
+    if (phone != null) {
+      payload['phone'] = phone.trim().isEmpty ? null : phone.trim();
+    }
+    if (birthDate != null) {
+      payload['birthDate'] = birthDate.trim().isEmpty ? null : birthDate.trim();
+    }
+    if (avatarUrl != null) payload['avatarUrl'] = avatarUrl;
+    if (currentPassword != null && currentPassword.isNotEmpty) {
+      payload['currentPassword'] = currentPassword;
+    }
     return _put('/profile/me', payload);
+  }
+
+  Future<Map<String, dynamic>> changePassword({
+    String? currentPassword,
+    required String newPassword,
+    bool allowSimilar = false,
+  }) async {
+    final payload = <String, dynamic>{
+      'newPassword': newPassword,
+      'allowSimilar': allowSimilar,
+    };
+    if (currentPassword != null) {
+      payload['currentPassword'] = currentPassword;
+    }
+    return _put('/profile/password', payload);
+  }
+
+  Future<Map<String, dynamic>> getNotifications() async {
+    return _get('/profile/notifications');
   }
 
   Future<Map<String, dynamic>> getPointsHistory() async {
@@ -116,7 +209,7 @@ class ApiService {
   }
 
   // ===========================================================================
-  // 3. PRODUCTS & CATALOG
+  // 3. PRODUCTS, CATALOG, & FAVORITES
   // ===========================================================================
 
   Future<Map<String, dynamic>> getProducts({
@@ -138,6 +231,20 @@ class ApiService {
 
   Future<Map<String, dynamic>> getCategories() async {
     return _get('/products/categories');
+  }
+
+  Future<Map<String, dynamic>> getFavorites() async {
+    return _get('/favorites');
+  }
+
+  Future<Map<String, dynamic>> toggleFavorite({
+    required String productId,
+    String? productName,
+  }) async {
+    return _post('/favorites/toggle', {
+      'productId': productId,
+      if (productName != null && productName.isNotEmpty) 'productName': productName,
+    });
   }
 
   // ===========================================================================
@@ -182,6 +289,11 @@ class ApiService {
     return _get('/orders/$cleanId/track');
   }
 
+  Future<Map<String, dynamic>> checkMidtransPaymentStatus(String orderId) async {
+    final cleanId = Uri.encodeComponent(orderId);
+    return _get('/payments/midtrans/status/$cleanId');
+  }
+
   // ===========================================================================
   // 6. AI BARISTA CHATBOT (GEMINI API & RECOMMENDATIONS)
   // ===========================================================================
@@ -223,14 +335,31 @@ class ApiService {
     return headers;
   }
 
+  Map<String, dynamic> _decodeJsonResponse(String body, int statusCode) {
+    if (body.trim().isEmpty) {
+      return {
+        'success': false,
+        'message': 'Respons server kosong (HTTP $statusCode).',
+      };
+    }
+    final decoded = jsonDecode(body);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    return {
+      'success': false,
+      'message': 'Format respons server tidak valid.',
+    };
+  }
+
   Future<Map<String, dynamic>> _get(String path) async {
     try {
       final uri = Uri.parse('$baseUrl$path');
       final response = await http
           .get(uri, headers: _buildHeaders())
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 8));
       final body = utf8.decode(response.bodyBytes);
-      return jsonDecode(body) as Map<String, dynamic>;
+      return _decodeJsonResponse(body, response.statusCode);
     } catch (e) {
       debugPrint('ApiService GET Error [$path]: $e');
       if (defaultTargetPlatform == TargetPlatform.android &&
@@ -240,10 +369,10 @@ class ApiService {
           final fallbackUri = Uri.parse('$androidFallbackUrl$path');
           final response = await http
               .get(fallbackUri, headers: _buildHeaders())
-              .timeout(const Duration(seconds: 6));
+              .timeout(const Duration(seconds: 8));
           customBaseUrl = androidFallbackUrl;
           final body = utf8.decode(response.bodyBytes);
-          return jsonDecode(body) as Map<String, dynamic>;
+          return _decodeJsonResponse(body, response.statusCode);
         } catch (_) {}
       }
       return {'success': false, 'message': 'Gagal terhubung ke backend: $e'};
@@ -261,7 +390,7 @@ class ApiService {
           .post(uri, headers: _buildHeaders(), body: jsonEncode(data))
           .timeout(timeoutDuration);
       final body = utf8.decode(response.bodyBytes);
-      return jsonDecode(body) as Map<String, dynamic>;
+      return _decodeJsonResponse(body, response.statusCode);
     } catch (e) {
       debugPrint('ApiService POST Error [$path]: $e');
       if (defaultTargetPlatform == TargetPlatform.android &&
@@ -274,7 +403,7 @@ class ApiService {
               .timeout(timeoutDuration);
           customBaseUrl = androidFallbackUrl;
           final body = utf8.decode(response.bodyBytes);
-          return jsonDecode(body) as Map<String, dynamic>;
+          return _decodeJsonResponse(body, response.statusCode);
         } catch (_) {}
       }
       return {'success': false, 'message': 'Gagal terhubung ke backend: $e'};
@@ -288,7 +417,7 @@ class ApiService {
           .put(uri, headers: _buildHeaders(), body: jsonEncode(data))
           .timeout(const Duration(seconds: 8));
       final body = utf8.decode(response.bodyBytes);
-      return jsonDecode(body) as Map<String, dynamic>;
+      return _decodeJsonResponse(body, response.statusCode);
     } catch (e) {
       debugPrint('ApiService PUT Error [$path]: $e');
       if (defaultTargetPlatform == TargetPlatform.android &&
@@ -301,7 +430,7 @@ class ApiService {
               .timeout(const Duration(seconds: 8));
           customBaseUrl = androidFallbackUrl;
           final body = utf8.decode(response.bodyBytes);
-          return jsonDecode(body) as Map<String, dynamic>;
+          return _decodeJsonResponse(body, response.statusCode);
         } catch (_) {}
       }
       return {'success': false, 'message': 'Gagal terhubung ke backend: $e'};

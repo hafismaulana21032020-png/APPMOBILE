@@ -6,6 +6,7 @@ import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
 import '../../domain/services/menu_service.dart';
 import '../controllers/home_tab_controller.dart';
+import 'favorite_heart_button.dart';
 import 'product_order_bottom_sheet.dart';
 
 class HomePopularSection extends StatelessWidget {
@@ -65,13 +66,17 @@ class HomePopularSection extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text(
-                  'Terpopuler di BreakFree',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkText,
-                    letterSpacing: -0.3,
+                const Expanded(
+                  child: Text(
+                    'Terpopuler di BreakFree',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkText,
+                      letterSpacing: -0.3,
+                    ),
                   ),
                 ),
                 TextButton(
@@ -198,6 +203,14 @@ class HomePopularSection extends StatelessWidget {
                                           ),
                                         ),
                                       ),
+                                    Positioned(
+                                      top: 6,
+                                      right: 6,
+                                      child: FavoriteHeartButton(
+                                        product: product,
+                                        size: 15,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),

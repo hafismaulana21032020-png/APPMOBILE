@@ -3,6 +3,7 @@ import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/product_model.dart';
+import 'favorite_heart_button.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductModel product;
@@ -100,6 +101,14 @@ class ProductCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: FavoriteHeartButton(
+                            product: product,
+                            size: 16,
+                          ),
+                        ),
                       ],
                     ),
                   ),

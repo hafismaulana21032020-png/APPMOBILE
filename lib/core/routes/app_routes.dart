@@ -21,4 +21,5 @@ class AppRoutes {
   static const String cashbackPoints = '/cashback-points';
   static const String aiChat = '/ai-chat';
   static const String orderTracking = '/order-tracking';
+  static const String favorites = '/favorites';
 }

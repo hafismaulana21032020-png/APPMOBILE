@@ -4,10 +4,13 @@ import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../account/domain/services/notification_service.dart';
+import '../../../account/domain/services/user_service.dart';
 import '../../../cart/domain/services/cart_service.dart';
 import '../../../order/domain/services/order_service.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
+import '../../domain/services/favorite_service.dart';
 import '../../domain/services/pickup_mode_service.dart';
 import '../../domain/services/menu_service.dart';
 import '../../domain/services/promo_service.dart';
@@ -52,9 +55,12 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    // Sinkronisasi menu sold out & voucher aktif dari backend Express & MySQL
+    // Sinkronisasi menu sold out, promo aktif, favorit, notifikasi & profil riil dari backend
     MenuService.instance.fetchMenu();
     PromoService.instance.fetchActivePromos();
+    FavoriteService.instance.fetchFavorites();
+    NotificationService.instance.fetchNotifications();
+    UserService.instance.syncWithBackend();
   }
 
   @override
@@ -78,7 +84,19 @@ class _HomePageState extends State<HomePage> {
 
   void _onToggleVoucher() {
     final cartService = CartService.instance;
-    final activePromoCode = PromoService.instance.primaryPromo?.code ?? 'BREAK20';
+    final promo = PromoService.instance.primaryPromo;
+    if (promo == null) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Saat ini belum ada promo voucher yang aktif.'),
+          backgroundColor: AppColors.primaryBrown,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    final activePromoCode = promo.code;
     final isAlreadyApplied = cartService.appliedPromoCode == activePromoCode;
     cartService.applyPromoCode(isAlreadyApplied ? null : activePromoCode);
 
@@ -303,12 +321,14 @@ class _HomePageState extends State<HomePage> {
         OrderService.instance,
         PickupModeService.instance,
         MenuService.instance,
+        PromoService.instance,
       ]),
       builder: (context, _) {
         final cartCount = CartService.instance.totalItemCount;
         final cartSubtotal = CartService.instance.subtotal;
-        final isVoucherApplied =
-            CartService.instance.appliedPromoCode == 'BREAK20';
+        final activePromo = PromoService.instance.primaryPromo;
+        final isVoucherApplied = activePromo != null &&
+            CartService.instance.appliedPromoCode == activePromo.code;
         final tabController = HomeTabController.instance;
         final activeTab = tabController.currentIndex;
         final movingForward =

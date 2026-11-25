@@ -15,7 +15,8 @@ class OrderItemsCard extends StatelessWidget {
   });
 
   String _formatDateTime(DateTime dt) {
-    final months = [
+    final local = dt.toLocal();
+    const months = [
       'Jan',
       'Feb',
       'Mar',
@@ -29,18 +30,18 @@ class OrderItemsCard extends StatelessWidget {
       'Nov',
       'Des',
     ];
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '${dt.day} ${months[dt.month - 1]} • $h:$m WIB';
+    final h = local.hour.toString().padLeft(2, '0');
+    final m = local.minute.toString().padLeft(2, '0');
+    return '${local.day} ${months[local.month - 1]} ${local.year} • $h:$m WIB';
   }
 
   @override
   Widget build(BuildContext context) {
-    final subtotal = order.items.fold<int>(
-      0,
-      (sum, item) => sum + (item.price * item.quantity),
-    );
-    final discount = order.promoCode != null ? (subtotal * 0.20).round() : 0;
+    final subtotal = order.computedSubtotal;
+    final voucherDiscount = order.effectiveVoucherDiscount;
+    final promoLabel = (order.voucherCode != null && order.voucherCode!.isNotEmpty)
+        ? order.voucherCode
+        : order.promoCode;
 
     return Container(
       width: double.infinity,
@@ -70,7 +71,7 @@ class OrderItemsCard extends StatelessWidget {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'Rincian Menu',
+                  'Rincian Menu & Pembayaran',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 15,
@@ -98,24 +99,62 @@ class OrderItemsCard extends StatelessWidget {
           const Divider(height: 1, color: AppColors.inputBorderColor),
           const SizedBox(height: 12),
 
-          // Payment details
+          // Real payment & service details from MySQL
           _buildRow('Waktu Pesanan', _formatDateTime(order.createdAt)),
           const SizedBox(height: 6),
+          _buildRow('Tipe Pesanan', order.displayOrderType, isBoldValue: true),
+          const SizedBox(height: 6),
+          _buildRow('Dilayani oleh', order.cashierDisplayName, isBoldValue: true),
+          const SizedBox(height: 6),
           _buildRow('Metode Pembayaran', order.paymentMethod, isBoldValue: true),
-          if (order.promoCode != null) ...[
+          const SizedBox(height: 6),
+          _buildRow('Subtotal Menu', AppFormatters.formatRupiah(subtotal)),
+          if (voucherDiscount > 0) ...[
             const SizedBox(height: 6),
             _buildRow(
-              'Voucher (${order.promoCode})',
-              '- ${AppFormatters.formatRupiah(discount)}',
+              promoLabel != null && promoLabel.isNotEmpty
+                  ? 'Voucher ($promoLabel)'
+                  : 'Potongan Voucher',
+              '- ${AppFormatters.formatRupiah(voucherDiscount)}',
+              valueColor: const Color(0xFF2E7D32),
+            ),
+          ] else if (promoLabel != null && promoLabel.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _buildRow(
+              'Voucher ($promoLabel)',
+              'Diterapkan',
               valueColor: const Color(0xFF2E7D32),
             ),
           ],
-          const SizedBox(height: 6),
+          if (order.pointsDiscount > 0 || order.pointsUsed > 0) ...[
+            const SizedBox(height: 6),
+            _buildRow(
+              'Tukar Poin (${order.pointsUsed} pts)',
+              '- ${AppFormatters.formatRupiah(order.pointsDiscount)}',
+              valueColor: const Color(0xFF2E7D32),
+            ),
+          ],
+          if (order.taxAmount > 0) ...[
+            const SizedBox(height: 6),
+            _buildRow('Pajak / Biaya Layanan', AppFormatters.formatRupiah(order.taxAmount)),
+          ],
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: AppColors.inputBorderColor),
+          const SizedBox(height: 8),
           _buildRow(
             'Total Pembayaran',
             order.formattedTotalPrice,
             isTotal: true,
           ),
+          if (order.pointsEarned > 0 && !order.isCancelled) ...[
+            const SizedBox(height: 6),
+            _buildRow(
+              'Cashback Poin Didapat',
+              '+${order.pointsEarned} Poin',
+              isBoldValue: true,
+              valueColor: const Color(0xFF2E7D32),
+            ),
+          ],
         ],
       ),
     );

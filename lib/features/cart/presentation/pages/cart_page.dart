@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../domain/models/cart_item_model.dart';
@@ -13,6 +12,7 @@ import '../../../home/domain/services/menu_service.dart';
 import '../../../home/domain/services/promo_service.dart';
 import '../../../order/domain/services/order_service.dart';
 import '../widgets/cart_item_card.dart';
+import '../widgets/midtrans_payment_sheet.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -35,12 +35,13 @@ class _CartPageState extends State<CartPage> {
   bool get _hasUnavailableItem =>
       _cartItems.any((item) => MenuService.instance.isSoldOut(item.id, item.name));
 
-  // Metode Pembayaran Terpilih (Hanya QRIS & Cash)
+  // Metode Pembayaran Terpilih (Midtrans Online QRIS/VA & Cash)
   String _selectedPaymentMethod = 'QRIS';
   final List<String> _paymentMethods = ['QRIS', 'Cash'];
 
   // Toggle Pemakaian Poin Cashback BreakFree
   bool _usePoints = false;
+  bool _isSubmittingCheckout = false;
 
   @override
   void initState() {
@@ -230,7 +231,7 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _onCheckout() {
-    if (_cartItems.isEmpty) return;
+    if (_cartItems.isEmpty || _isSubmittingCheckout) return;
     if (_hasUnavailableItem) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -242,182 +243,10 @@ class _CartPageState extends State<CartPage> {
       return;
     }
     if (_selectedPaymentMethod == 'QRIS') {
-      _showQrisBottomSheet();
+      _executeCheckout('MIDTRANS');
     } else {
       _showCashConfirmDialog();
     }
-  }
-
-  void _showQrisBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Drag handle
-                  Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Title
-                  const Text(
-                    'Pembayaran QRIS',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkText,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Scan kode QRIS di bawah ini untuk membayar',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.secondaryText,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Total Tagihan
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9F6F0),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.inputBorderColor),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Total Pembayaran',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.secondaryText,
-                          ),
-                        ),
-                        Text(
-                          _formatPrice(_totalPayment),
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.darkBrown,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Gambar QRIS Resmi yang sudah diproses & bersih
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.inputBorderColor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(10),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        AppAssets.qrisBreakfree,
-                        height: 310,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.verified_rounded, size: 15, color: Color(0xFF2E7D32)),
-                      SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'Mendukung semua Bank (BSI, BCA, BRI, dll) & e-Wallet',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF2E7D32),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Tombol Konfirmasi Pembayaran
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _executeCheckout('QRIS');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBrown,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Saya Sudah Membayar',
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text(
-                      'Batal',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.secondaryText,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
   }
 
   void _showCashConfirmDialog() {
@@ -507,26 +336,29 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _executeCheckout(String paymentMethod) async {
+    if (_isSubmittingCheckout) return;
+    setState(() => _isSubmittingCheckout = true);
+
     final total = _totalPayment;
     final promoCode = CartService.instance.appliedPromoCode;
     final cartItems = List<CartItemModel>.from(CartService.instance.items);
 
-    final isTakeawayMode = PickupModeService.instance.isTakeaway ||
-        cartItems.any((it) =>
-            it.options.toLowerCase().contains('take away') ||
-            it.options.toLowerCase().contains('takeaway') ||
-            it.options.toLowerCase().contains('bungkus'));
-    final pickupType = isTakeawayMode
+    final orderType = PickupModeService.instance.mode.code;
+    final pickupType = PickupModeService.instance.isTakeaway
         ? 'Takeaway (Bungkus Bawa Pulang)'
         : 'Dine-in (Minum di Kafe)';
 
-    // Buat live order di OrderService dan sinkronkan ke backend Web POS
+    final isCash = paymentMethod.toLowerCase().contains('cash') ||
+        paymentMethod.toLowerCase().contains('tunai');
+
+    // Buat live order di OrderService dan sinkronkan ke backend + Midtrans
     try {
       final newOrder = await OrderService.instance.createOrderFromCart(
         items: cartItems,
         paymentMethod: paymentMethod,
         totalPrice: total,
         promoCode: promoCode,
+        orderType: orderType,
         pickupType: pickupType,
         usePoints: _usePoints,
       );
@@ -534,23 +366,73 @@ class _CartPageState extends State<CartPage> {
       final pointsData = newOrder.points;
       if (pointsData != null && pointsData['currentBalance'] != null) {
         UserService.instance.setPoints(pointsData['currentBalance']);
-      } else {
-        // Fallback lokal jika respon backend tanpa payload points
-        if (_usePoints && _pointsToUse > 0) {
-          UserService.instance.deductPoints(_pointsToUse);
-        }
-        final isCash = paymentMethod.toLowerCase().contains('cash') || paymentMethod.toLowerCase().contains('tunai');
-        if (!isCash && _earnedCashbackPoints > 0) {
-          UserService.instance.addPoints(_earnedCashbackPoints);
-        }
+      } else if (_usePoints && _pointsToUse > 0) {
+        UserService.instance.deductPoints(_pointsToUse);
       }
 
-      // Bersihkan keranjang
+      // Bersihkan keranjang karena pesanan sudah tersimpan aman di MySQL
       CartService.instance.clear();
 
       if (!mounted) return;
+      setState(() => _isSubmittingCheckout = false);
 
-      // Navigate ke halaman pembayaran berhasil
+      if (!isCash && newOrder.snapRedirectUrl != null) {
+        await MidtransPaymentSheet.show(
+          context,
+          order: newOrder,
+          onPaid: (statusRes) {
+            if (!mounted) return;
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.paymentSuccess,
+              (route) => false,
+              arguments: {
+                'orderNumber': newOrder.id,
+                'queueNumber': newOrder.queueNumber,
+                'paymentMethod':
+                    statusRes['paymentMethodLabel']?.toString() ?? 'Midtrans',
+                'totalPayment': newOrder.totalPrice,
+                'points': {
+                  'earned': newOrder.pointsEarned > 0
+                      ? newOrder.pointsEarned
+                      : _earnedCashbackPoints,
+                  'used': newOrder.pointsUsed,
+                  'discountAmount': newOrder.pointsDiscount,
+                  'currentBalance': UserService.instance.points,
+                  'isPending': false,
+                },
+              },
+            );
+          },
+          onFailed: (errMsg) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(errMsg),
+                backgroundColor: const Color(0xFFC93B2B),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.orderTracking,
+              (route) => false,
+            );
+          },
+          onPayLater: () {
+            if (!mounted) return;
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.orderTracking,
+              (route) => false,
+            );
+          },
+        );
+        return;
+      }
+
+      // Alur pembayaran Cash di kasir
       Navigator.pushNamedAndRemoveUntil(
         context,
         AppRoutes.paymentSuccess,
@@ -565,12 +447,13 @@ class _CartPageState extends State<CartPage> {
             'used': _pointsToUse,
             'discountAmount': _pointDiscountAmount,
             'currentBalance': UserService.instance.points,
-            'isPending': paymentMethod.toLowerCase().contains('cash') || paymentMethod.toLowerCase().contains('tunai'),
+            'isPending': true,
           },
         },
       );
     } catch (e) {
       if (!mounted) return;
+      setState(() => _isSubmittingCheckout = false);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -649,43 +532,173 @@ class _CartPageState extends State<CartPage> {
                   children: [
                     const SizedBox(height: 6),
 
-                    // Indikator Mode Pengambilan Self-Service
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBgColor,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.inputBorderColor,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            PickupModeService.instance.isDineIn
-                                ? Icons.local_cafe_outlined
-                                : Icons.shopping_bag_outlined,
-                            size: 18,
-                            color: AppColors.primaryBrown,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              '${PickupModeService.instance.displayTitle} • Ambil di Counter Bar',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.darkBrown,
-                              ),
+                    // Pemilih Mode Pengambilan (Dine-in Self Pick-Up vs Takeaway)
+                    AnimatedBuilder(
+                      animation: PickupModeService.instance,
+                      builder: (context, _) {
+                        final isDineIn = PickupModeService.instance.isDineIn;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardBgColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: AppColors.inputBorderColor,
+                              width: 1,
                             ),
                           ),
-                        ],
-                      ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(
+                                    Icons.storefront_outlined,
+                                    size: 16,
+                                    color: AppColors.primaryBrown,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Metode Pengambilan Pesanan',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.darkBrown,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () => setState(() {
+                                        PickupModeService.instance.setMode(
+                                          PickupMode.dineIn,
+                                        );
+                                      }),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 180,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 10,
+                                          horizontal: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isDineIn
+                                              ? AppColors.primaryBrown
+                                              : Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: isDineIn
+                                                ? AppColors.primaryBrown
+                                                : AppColors.inputBorderColor,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.local_cafe_outlined,
+                                              size: 16,
+                                              color: isDineIn
+                                                  ? Colors.white
+                                                  : AppColors.darkBrown,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                'Dine-in (Self Pick-Up)',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isDineIn
+                                                      ? Colors.white
+                                                      : AppColors.darkBrown,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () => setState(() {
+                                        PickupModeService.instance.setMode(
+                                          PickupMode.takeaway,
+                                        );
+                                      }),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 180,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 10,
+                                          horizontal: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: !isDineIn
+                                              ? AppColors.primaryBrown
+                                              : Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: !isDineIn
+                                                ? AppColors.primaryBrown
+                                                : AppColors.inputBorderColor,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.shopping_bag_outlined,
+                                              size: 16,
+                                              color: !isDineIn
+                                                  ? Colors.white
+                                                  : AppColors.darkBrown,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                'Takeaway (Bawa Pulang)',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: !isDineIn
+                                                      ? Colors.white
+                                                      : AppColors.darkBrown,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
 
                     // Peringatan jika ada item habis di keranjang
@@ -874,7 +887,7 @@ class _CartPageState extends State<CartPage> {
                                     const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
-                                        isQris ? 'QRIS' : 'Cash (Kasir)',
+                                        isQris ? 'Midtrans (QRIS/VA)' : 'Cash (Kasir)',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -1207,7 +1220,7 @@ class _CartPageState extends State<CartPage> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: (_cartItems.isEmpty || _hasUnavailableItem) ? null : _onCheckout,
+                      onPressed: (_cartItems.isEmpty || _hasUnavailableItem || _isSubmittingCheckout) ? null : _onCheckout,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryBrown,
                         disabledBackgroundColor: Colors.grey.shade400,
@@ -1216,22 +1229,31 @@ class _CartPageState extends State<CartPage> {
                         ),
                         elevation: 0,
                       ),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          _hasUnavailableItem
-                              ? 'Hapus Menu Habis untuk Melanjutkan'
-                              : _selectedPaymentMethod == 'Cash'
-                                  ? 'Pesan & Bayar di Kasir (${_formatPrice(_totalPayment)})'
-                                  : 'Bayar via QRIS (${_formatPrice(_totalPayment)})',
-                          maxLines: 1,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                      child: _isSubmittingCheckout
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: Colors.white,
+                              ),
+                            )
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                _hasUnavailableItem
+                                    ? 'Hapus Menu Habis untuk Melanjutkan'
+                                    : _selectedPaymentMethod == 'Cash'
+                                        ? 'Pesan & Bayar di Kasir (${_formatPrice(_totalPayment)})'
+                                        : 'Bayar via Midtrans (${_formatPrice(_totalPayment)})',
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                 ],

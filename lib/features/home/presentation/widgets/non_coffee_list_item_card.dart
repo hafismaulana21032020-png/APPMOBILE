@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/product_model.dart';
+import 'favorite_heart_button.dart';
 
 class NonCoffeeListItemCard extends StatelessWidget {
   final ProductModel product;
@@ -94,15 +95,26 @@ class NonCoffeeListItemCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.bold,
-                    color: isAvailable ? AppColors.darkText : const Color(0xFF8C827A),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.bold,
+                          color: isAvailable ? AppColors.darkText : const Color(0xFF8C827A),
+                        ),
+                      ),
+                    ),
+                    FavoriteHeartButton(
+                      product: product,
+                      size: 18,
+                      withBackground: false,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -123,14 +135,16 @@ class NonCoffeeListItemCard extends StatelessWidget {
                     Expanded(
                       child: Row(
                         children: [
-                          Text(
-                            product.formattedPrice,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.bold,
-                              color: isAvailable ? AppColors.darkText : const Color(0xFF8C827A),
+                          Flexible(
+                            child: Text(
+                              product.formattedPrice,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                                color: isAvailable ? AppColors.darkText : const Color(0xFF8C827A),
+                              ),
                             ),
                           ),
                           if (!isAvailable) ...[

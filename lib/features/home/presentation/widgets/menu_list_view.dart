@@ -7,7 +7,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../data/menu_data.dart';
 import '../../domain/models/product_model.dart';
+import '../../domain/services/favorite_service.dart';
 import '../../domain/services/menu_service.dart';
+import 'favorite_heart_button.dart';
 import 'product_order_bottom_sheet.dart';
 
 class MenuTabContent extends StatefulWidget {
@@ -25,6 +27,7 @@ class MenuTabContent extends StatefulWidget {
 class _MenuTabContentState extends State<MenuTabContent> {
   static const List<String> _categories = [
     'Semua',
+    'Favorit',
     'Kopi',
     'Non-Kopi',
     'Makanan',
@@ -47,6 +50,7 @@ class _MenuTabContentState extends State<MenuTabContent> {
     super.initState();
     _selectedCategory = widget.initialCategory;
     MenuService.instance.fetchMenu();
+    FavoriteService.instance.fetchFavorites();
   }
 
   @override
@@ -79,6 +83,13 @@ class _MenuTabContentState extends State<MenuTabContent> {
 
   List<ProductModel> get _filteredItems {
     final query = _searchQuery.trim().toLowerCase();
+    if (_selectedCategory == 'Favorit') {
+      return FavoriteService.instance.resolvedFavoriteProducts.where((product) {
+        return query.isEmpty ||
+            product.name.toLowerCase().contains(query) ||
+            product.description.toLowerCase().contains(query);
+      }).toList();
+    }
     return breakfreeMenuItems.where((product) {
       final matchesCategory = _selectedCategory == 'Semua' ||
           product.category.toLowerCase() == _selectedCategory.toLowerCase();
@@ -122,7 +133,10 @@ class _MenuTabContentState extends State<MenuTabContent> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: MenuService.instance,
+      animation: Listenable.merge([
+        MenuService.instance,
+        FavoriteService.instance,
+      ]),
       builder: (context, _) {
         final isAllDefaultView =
             _selectedCategory == 'Semua' && _searchQuery.trim().isEmpty;
@@ -359,12 +373,27 @@ class _MenuTabContentState extends State<MenuTabContent> {
                   ),
                   const SizedBox(height: 12),
                   if (filtered.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 36),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
                       child: Center(
-                        child: Text(
-                          'Menu tidak ditemukan',
-                          style: TextStyle(color: AppColors.secondaryText),
+                        child: Column(
+                          children: [
+                            Icon(
+                              _selectedCategory == 'Favorit'
+                                  ? Icons.favorite_border_rounded
+                                  : Icons.search_off_rounded,
+                              size: 36,
+                              color: AppColors.secondaryText.withValues(alpha: 0.7),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              _selectedCategory == 'Favorit'
+                                  ? 'Belum ada menu favorit.\nKetuk ikon hati pada menu pilihanmu.'
+                                  : 'Menu tidak ditemukan',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: AppColors.secondaryText),
+                            ),
+                          ],
                         ),
                       ),
                     )
@@ -534,6 +563,12 @@ class _MenuCatalogCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(width: 8),
+                FavoriteHeartButton(
+                  product: product,
+                  size: 20,
+                  withBackground: false,
                 ),
               ],
             ),

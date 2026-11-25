@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/services/api_service.dart';
+import '../../../../core/services/google_auth_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../cart/domain/services/cart_service.dart';
+import '../../../home/domain/services/favorite_service.dart';
+import '../../../home/domain/services/promo_service.dart';
 import '../../../home/presentation/controllers/home_tab_controller.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import '../../../home/presentation/widgets/home_nav_helper.dart';
+import '../../domain/services/notification_service.dart';
 import '../../domain/services/user_service.dart';
 import '../../../order/domain/services/order_service.dart';
 
@@ -63,16 +68,25 @@ class AccountPage extends StatelessWidget {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(dialogCtx);
+              await ApiService.instance.clearSession();
+              await GoogleAuthService.instance.signOut();
+              UserService.instance.clear();
+              FavoriteService.instance.clear();
+              NotificationService.instance.clear();
+              OrderService.instance.clearAll();
+              CartService.instance.clear();
               HomeTabController.instance.resetToHome();
-              Navigator.pushNamedAndRemoveUntil(
-                context,
+              if (!context.mounted) return;
+              navigator.pushNamedAndRemoveUntil(
                 AppRoutes.login,
                 (r) => false,
               );
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.hideCurrentSnackBar();
+              messenger.showSnackBar(
                 const SnackBar(
                   content: Text('Kamu telah berhasil keluar dari akun.'),
                   backgroundColor: AppColors.primaryBrown,
@@ -103,7 +117,12 @@ class AccountPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([UserService.instance, CartService.instance]),
+      animation: Listenable.merge([
+        UserService.instance,
+        CartService.instance,
+        OrderService.instance,
+        PromoService.instance,
+      ]),
       builder: (context, _) {
         final user = UserService.instance;
         final cartCount = CartService.instance.totalItemCount;
@@ -111,6 +130,8 @@ class AccountPage extends StatelessWidget {
         final firstName = trimmedName.isEmpty
             ? 'PENGGUNA'
             : trimmedName.split(RegExp(r'\s+')).first.toUpperCase();
+        final ordersCount = OrderService.instance.orderHistory.length;
+        final promosCount = PromoService.instance.activePromos.length;
 
         return Scaffold(
           backgroundColor: AppColors.backgroundColor,
@@ -173,7 +194,7 @@ class AccountPage extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            // Initials avatar
+                            // Avatar (Foto Google atau Inisial)
                             Container(
                               width: 50,
                               height: 50,
@@ -181,16 +202,33 @@ class AccountPage extends StatelessWidget {
                                 color: AppColors.primaryBrown,
                                 borderRadius: BorderRadius.circular(14),
                               ),
+                              clipBehavior: Clip.antiAlias,
                               alignment: Alignment.center,
-                              child: Text(
-                                user.initials,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+                              child: user.avatarUrl != null
+                                  ? Image.network(
+                                      user.avatarUrl!,
+                                      width: 50,
+                                      height: 50,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => Text(
+                                        user.initials,
+                                        style: const TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    )
+                                  : Text(
+                                      user.initials,
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -269,13 +307,28 @@ class AccountPage extends StatelessWidget {
                               thickness: 1,
                               width: 1,
                             ),
-                            const _StatItem(label: 'Pesanan', value: '12'),
+                            _StatItem(
+                              label: 'Pesanan',
+                              value: '$ordersCount',
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                AppRoutes.orderTracking,
+                                arguments: 1,
+                              ),
+                            ),
                             const VerticalDivider(
                               color: AppColors.inputBorderColor,
                               thickness: 1,
                               width: 1,
                             ),
-                            const _StatItem(label: 'Promo', value: '3'),
+                            _StatItem(
+                              label: 'Promo',
+                              value: '$promosCount',
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                AppRoutes.cart,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -308,16 +361,10 @@ class AccountPage extends StatelessWidget {
                         _QuickAction(
                           icon: Icons.favorite_border_rounded,
                           label: 'Favorit',
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Menu favoritmu tersimpan di katalog BreakFree.'),
-                                backgroundColor: AppColors.primaryBrown,
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.favorites,
+                          ),
                         ),
                       ],
                     ),

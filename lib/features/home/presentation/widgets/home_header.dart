@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../account/domain/services/notification_service.dart';
 
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key});
@@ -21,7 +22,8 @@ class HomeHeader extends StatelessWidget {
                 style: AppTextStyles.brandTitle,
               ),
               const SizedBox(height: 2),
-              Row(
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: const [
                   Text(
                     'Malang, Indonesia',
@@ -40,33 +42,40 @@ class HomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        Stack(
-          children: [
-            IconButton(
-              onPressed: () => Navigator.pushNamed(
-                context,
-                AppRoutes.notifications,
-              ),
-              icon: const Icon(
-                Icons.notifications_none_rounded,
-                size: 26,
-                color: AppColors.darkBrown,
-              ),
-              tooltip: 'Notifikasi',
-            ),
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE53935),
-                  shape: BoxShape.circle,
+        AnimatedBuilder(
+          animation: NotificationService.instance,
+          builder: (context, _) {
+            final unread = NotificationService.instance.unreadCount;
+            return Stack(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    AppRoutes.notifications,
+                  ),
+                  icon: const Icon(
+                    Icons.notifications_none_rounded,
+                    size: 26,
+                    color: AppColors.darkBrown,
+                  ),
+                  tooltip: 'Notifikasi',
                 ),
-              ),
-            ),
-          ],
+                if (unread > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE53935),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );

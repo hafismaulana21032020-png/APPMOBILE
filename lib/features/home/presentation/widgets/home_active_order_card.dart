@@ -17,15 +17,24 @@ class HomeActiveOrderCard extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
+        final isCancelled = order.isCancelled;
+        final bgColor = isCancelled ? const Color(0xFFFFF5F5) : const Color(0xFFF1F8E9);
+        final borderColor = isCancelled ? const Color(0xFFFFCDD2) : const Color(0xFFC8E6C9);
+        final accentColor = isCancelled ? const Color(0xFFC62828) : const Color(0xFF2E7D32);
+        final titleColor = isCancelled ? const Color(0xFFB71C1C) : const Color(0xFF1B5E20);
+        final subtitleColor = isCancelled ? const Color(0xFFC62828) : const Color(0xFF33691E);
+        final pillBg = isCancelled ? const Color(0xFFFFEBEE) : const Color(0xFFE8F5E9);
+        final pillBorder = isCancelled ? const Color(0xFFEF9A9A) : const Color(0xFFA5D6A7);
+
         return Container(
           margin: const EdgeInsets.only(bottom: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F8E9),
+            color: bgColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFC8E6C9), width: 1.2),
+            border: Border.all(color: borderColor, width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2E7D32).withValues(alpha: 0.06),
+                color: accentColor.withValues(alpha: 0.06),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -50,20 +59,22 @@ class HomeActiveOrderCard extends StatelessWidget {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2E7D32),
+                        color: accentColor,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF2E7D32).withValues(alpha: 0.25),
+                            color: accentColor.withValues(alpha: 0.25),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: Icon(
-                        order.status == OrderStatus.siapDiambil
-                            ? Icons.notifications_active_rounded
-                            : Icons.coffee_maker_rounded,
+                        isCancelled
+                            ? Icons.cancel_rounded
+                            : (order.status == OrderStatus.siapDiambil
+                                ? Icons.notifications_active_rounded
+                                : Icons.coffee_maker_rounded),
                         color: Colors.white,
                         size: 20,
                       ),
@@ -79,10 +90,10 @@ class HomeActiveOrderCard extends StatelessWidget {
                             children: [
                               Text(
                                 'Antrean ${order.queueNumber}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1B5E20),
+                                  color: titleColor,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -92,19 +103,19 @@ class HomeActiveOrderCard extends StatelessWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE8F5E9),
+                                  color: pillBg,
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: const Color(0xFFA5D6A7),
+                                    color: pillBorder,
                                     width: 0.8,
                                   ),
                                 ),
                                 child: Text(
                                   order.status.badgeText,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF2E7D32),
+                                    color: accentColor,
                                   ),
                                 ),
                               ),
@@ -112,12 +123,14 @@ class HomeActiveOrderCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${order.status.title} • Ketuk untuk lacak live',
+                            isCancelled
+                                ? 'Pesanan Dibatalkan • Ketuk untuk detail'
+                                : '${order.status.title} • Ketuk untuk lacak live',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF33691E),
+                              color: subtitleColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -125,10 +138,10 @@ class HomeActiveOrderCard extends StatelessWidget {
                       ),
                     ),
 
-                    const Icon(
+                    Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: 13,
-                      color: Color(0xFF2E7D32),
+                      color: accentColor,
                     ),
                   ],
                 ),

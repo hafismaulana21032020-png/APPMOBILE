@@ -11,6 +11,7 @@ class ProductModel {
   final String? subcategory;
   final String? tag;
   final bool isAvailable;
+  final bool isFavorite;
 
   const ProductModel({
     required this.id,
@@ -22,6 +23,7 @@ class ProductModel {
     this.subcategory,
     this.tag,
     this.isAvailable = true,
+    this.isFavorite = false,
   });
 
   String get formattedPrice => AppFormatters.formatRupiah(price);
@@ -36,6 +38,7 @@ class ProductModel {
     String? subcategory,
     String? tag,
     bool? isAvailable,
+    bool? isFavorite,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -47,6 +50,7 @@ class ProductModel {
       subcategory: subcategory ?? this.subcategory,
       tag: tag ?? this.tag,
       isAvailable: isAvailable ?? this.isAvailable,
+      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
 
@@ -72,6 +76,9 @@ class ProductModel {
                 ? rawAvailable == 1
                 : rawAvailable.toString() == '1' || rawAvailable.toString().toLowerCase() == 'true'));
 
+    final rawFav = json['isFavorite'] ?? json['is_favorite'];
+    final bool fav = rawFav == true || rawFav == 1 || rawFav?.toString() == '1';
+
     return ProductModel(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
@@ -82,6 +89,7 @@ class ProductModel {
       subcategory: json['subcategory']?.toString(),
       tag: json['tag']?.toString(),
       isAvailable: available,
+      isFavorite: fav,
     );
   }
 
@@ -96,6 +104,7 @@ class ProductModel {
       'subcategory': subcategory,
       'tag': tag,
       'isAvailable': isAvailable,
+      'isFavorite': isFavorite,
     };
   }
 }

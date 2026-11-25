@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/services/api_service.dart';
 import '../../data/menu_data.dart';
 import '../models/product_model.dart';
+import 'favorite_service.dart';
 
 /// Single source of truth untuk katalog menu dan status ketersediaan (Sold Out / Ready)
 /// yang tersinkronisasi langsung dengan Web POS dan Database MySQL melalui backend Express.
@@ -29,8 +30,6 @@ class MenuService extends ChangeNotifier {
 
   void startAutoSync() {
     _autoSyncTimer?.cancel();
-    // Sinkronisasi otomatis setiap 4 detik agar perubahan toggle status di Web POS kasir
-    // langsung tampil secara real-time di aplikasi mobile tanpa restart aplikasi.
     _autoSyncTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       fetchMenu(force: true);
     });
@@ -42,7 +41,6 @@ class MenuService extends ChangeNotifier {
   }
 
   /// Normalisasi nama produk untuk toleransi variasi penamaan POS vs Mobile
-  /// Cth: "SF Nasi Telur Barendo", "Nasi Telur Barendo + Es Teh", "Nasi Ayam Krispi" vs "Nasi Ayam Crispy", "Mini Pau" vs "Mini Pao"
   static String normalizeName(String name) {
     var s = name.trim().toLowerCase();
     s = s.replaceAll('sf ', '');
@@ -66,7 +64,7 @@ class MenuService extends ChangeNotifier {
     }
   }
 
-  /// Sinkronisasi menu dan status Sold Out dari database backend
+  /// Sinkronisasi menu, status Sold Out, dan status favorit dari database backend
   Future<void> fetchMenu({bool force = false}) async {
     if (!force && _lastFetched != null && DateTime.now().difference(_lastFetched!).inSeconds < 3) {
       return;
@@ -80,10 +78,13 @@ class MenuService extends ChangeNotifier {
 
         final Set<String> newSoldOutIds = {};
         final Set<String> newSoldOutNames = {};
+        final List<ProductModel> parsedList = [];
 
         for (final raw in list) {
           if (raw is Map<String, dynamic>) {
             final p = ProductModel.fromJson(raw);
+            parsedList.add(p);
+
             final rawId = p.id.toString();
             final rawName = p.name.trim().toLowerCase();
             final norm = normalizeName(p.name);
@@ -100,16 +101,20 @@ class MenuService extends ChangeNotifier {
           }
         }
 
+        if (parsedList.isNotEmpty) {
+          FavoriteService.instance.syncFromProductsList(parsedList);
+        }
+
         _soldOutIds.clear();
         _soldOutIds.addAll(newSoldOutIds);
 
         _soldOutNames.clear();
         _soldOutNames.addAll(newSoldOutNames);
 
-        // Perbarui status ketersediaan pada list menu internal
         _allProducts = breakfreeMenuItems.map((localItem) {
           final isAvail = isProductAvailable(localItem);
-          return localItem.copyWith(isAvailable: isAvail);
+          final isFav = FavoriteService.instance.isFavorite(localItem.id, localItem.name);
+          return localItem.copyWith(isAvailable: isAvail, isFavorite: isFav);
         }).toList();
 
         _lastFetched = DateTime.now();
@@ -122,7 +127,6 @@ class MenuService extends ChangeNotifier {
     }
   }
 
-  /// Cek ketersediaan produk (apakah ready atau Sold Out)
   bool isProductAvailable(ProductModel product) {
     if (isSoldOut(product.id, product.name)) {
       return false;
@@ -130,7 +134,6 @@ class MenuService extends ChangeNotifier {
     return product.isAvailable;
   }
 
-  /// Cek apakah item berdasarkan ID atau nama berstatus sold out
   bool isSoldOut(String id, String name) {
     if (_soldOutIds.contains(id)) {
       return true;
@@ -146,7 +149,6 @@ class MenuService extends ChangeNotifier {
       return true;
     }
 
-    // Cek partial match nama inti
     for (final so in _soldOutNames) {
       if (so.length >= 4 && (norm.contains(so) || so.contains(norm))) {
         return true;
@@ -156,8 +158,11 @@ class MenuService extends ChangeNotifier {
     return false;
   }
 
-  /// Ambil model produk dengan status ketersediaan terbaru
+  /// Ambil model produk dengan status ketersediaan & favorit terbaru
   ProductModel resolveProduct(ProductModel item) {
-    return item.copyWith(isAvailable: isProductAvailable(item));
+    return item.copyWith(
+      isAvailable: isProductAvailable(item),
+      isFavorite: FavoriteService.instance.isFavorite(item.id, item.name),
+    );
   }
 }

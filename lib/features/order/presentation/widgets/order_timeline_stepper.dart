@@ -18,8 +18,9 @@ class OrderTimelineStepper extends StatelessWidget {
 
   String _formatTime(DateTime? dt) {
     if (dt == null) return '--:--';
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
+    final local = dt.toLocal();
+    final h = local.hour.toString().padLeft(2, '0');
+    final m = local.minute.toString().padLeft(2, '0');
     return '$h:$m WIB';
   }
 
@@ -47,6 +48,108 @@ class OrderTimelineStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (currentStatus == OrderStatus.dibatalkan) {
+      final cancelTime = _formatTime(statusTimes[OrderStatus.dibatalkan]);
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFFFCDD2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(5),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons.cancel_rounded,
+                  size: 20,
+                  color: Color(0xFFC62828),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Tahapan Pesanan Dihentikan',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFC62828),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFC62828),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.close_rounded, size: 15, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Pesanan Dibatalkan oleh Kasir',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFB71C1C),
+                              ),
+                            ),
+                          ),
+                          if (cancelTime != '--:--')
+                            Text(
+                              cancelTime,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFC62828),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Antrean dapur dihentikan. Silakan buat pesanan baru jika ingin memesan kembali.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.secondaryText,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     final steps = _displaySteps;
     final currentIndex = steps.indexOf(currentStatus);
 

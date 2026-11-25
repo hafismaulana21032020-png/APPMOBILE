@@ -24,7 +24,8 @@ class PromoService extends ChangeNotifier {
     }
 
     _isLoading = true;
-    notifyListeners();
+    await Future<void>.delayed(Duration.zero);
+    if (_isLoading) notifyListeners();
 
     try {
       final res = await ApiService.instance.getActivePromos();

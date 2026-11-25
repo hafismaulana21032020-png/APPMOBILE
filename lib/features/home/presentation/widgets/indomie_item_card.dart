@@ -3,6 +3,7 @@ import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../domain/models/product_model.dart';
+import 'favorite_heart_button.dart';
 
 class IndomieLevelOption {
   final String level;
@@ -125,13 +126,24 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.product.name,
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.product.name,
+                              style: const TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkText,
+                              ),
+                            ),
+                          ),
+                          FavoriteHeartButton(
+                            product: widget.product,
+                            size: 18,
+                            withBackground: false,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -214,14 +226,16 @@ class _IndomieItemCardState extends State<IndomieItemCard> {
               Expanded(
                 child: Row(
                   children: [
-                    Text(
-                      'Mulai ${widget.product.formattedPrice}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
-                        color: isAvailable ? AppColors.darkText : const Color(0xFF8C827A),
+                    Flexible(
+                      child: Text(
+                        'Mulai ${widget.product.formattedPrice}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: isAvailable ? AppColors.darkText : const Color(0xFF8C827A),
+                        ),
                       ),
                     ),
                     if (!isAvailable) ...[

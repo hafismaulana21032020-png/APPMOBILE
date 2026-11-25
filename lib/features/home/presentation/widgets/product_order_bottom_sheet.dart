@@ -38,7 +38,7 @@ class ProductOptionGroup {
 /// Modal bottom sheet interaktif untuk memilih varian/opsi, jumlah pcs, dan menambahkan catatan ke kasir.
 class ProductOrderBottomSheet {
   ProductOrderBottomSheet._();
-
+  
   /// Mendeteksi apakah produk memiliki opsi khusus seperti Gyoza, Kopi Sarijan, atau Indomie.
   static ProductOptionGroup? _getProductOptionGroup(ProductModel product) {
     final name = product.name.toLowerCase();
@@ -884,6 +884,6 @@ class ProductOrderBottomSheet {
           },
         );
       },
-    );
+    ).whenComplete(noteController.dispose);
   }
 }

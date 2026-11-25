@@ -17,6 +17,7 @@ import '../../features/account/presentation/pages/help_page.dart';
 import '../../features/account/presentation/pages/settings_page.dart';
 import '../../features/account/presentation/pages/notifications_page.dart';
 import '../../features/account/presentation/pages/cashback_points_page.dart';
+import '../../features/account/presentation/pages/favorites_page.dart';
 import '../../features/home/presentation/pages/ai_chat_page.dart';
 import '../../features/order/presentation/pages/order_tracking_page.dart';
 import 'app_routes.dart';
@@ -101,8 +102,12 @@ class AppRouter {
           settings: settings,
         );
       case AppRoutes.forgotPassword:
+        final args = settings.arguments;
+        final initialEmail = args is String
+            ? args
+            : (args is Map ? args['email']?.toString() : null);
         return SmoothSlidePageRoute(
-          page: const ForgotPasswordPage(),
+          page: ForgotPasswordPage(initialEmail: initialEmail),
           settings: settings,
         );
       case AppRoutes.home:
@@ -186,6 +191,11 @@ class AppRouter {
             : 0;
         return SmoothSlidePageRoute(
           page: OrderTrackingPage(initialTabIndex: initialTab),
+          settings: settings,
+        );
+      case AppRoutes.favorites:
+        return SmoothSlidePageRoute(
+          page: const FavoritesPage(),
           settings: settings,
         );
       default:

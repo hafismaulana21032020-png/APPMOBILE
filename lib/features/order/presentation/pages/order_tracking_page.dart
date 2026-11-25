@@ -32,14 +32,18 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
     super.initState();
     _selectedTab = widget.initialTabIndex;
 
-    // Sinkronisasi status pesanan dari backend MySQL secara langsung
+    // Sinkronisasi status pesanan & riwayat nyata dari backend MySQL
     OrderService.instance.syncActiveOrderFromBackend();
+    OrderService.instance.loadHistoryFromBackend();
 
-    // Auto-polling status pesanan setiap 3 detik
-    // Agar status yang diubah kasir di Web POS langsung ter-update di layar pelanggan
-    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (mounted) {
-        OrderService.instance.syncActiveOrderFromBackend();
+    // Auto-polling status pesanan & Midtrans setiap 3 detik
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted) return;
+      final active = OrderService.instance.activeOrder;
+      if (active != null && active.hasPendingMidtrans) {
+        await OrderService.instance.checkMidtransStatus(active.id);
+      } else {
+        await OrderService.instance.syncActiveOrderFromBackend();
       }
     });
   }
@@ -103,10 +107,56 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
               ],
             ),
             const SizedBox(height: 8),
-            Expanded(
+              Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   children: [
+                    if (order.isCancelled) ...[
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFEF9A9A)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.cancel_rounded,
+                                  size: 18,
+                                  color: Color(0xFFC62828),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Pesanan Dibatalkan oleh Kasir',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFB71C1C),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              (order.cancelReason != null &&
+                                      order.cancelReason!.isNotEmpty)
+                                  ? 'Alasan: ${order.cancelReason}'
+                                  : 'Pesanan dibatalkan oleh kasir BreakFree.',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: Color(0xFF7F1D1D),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     OrderItemsCard(order: order),
                     const SizedBox(height: 12),
                     OrderTimelineStepper(
@@ -167,6 +217,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                 ),
                 onPressed: () {
                   OrderService.instance.syncActiveOrderFromBackend();
+                  OrderService.instance.loadHistoryFromBackend();
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -378,34 +429,71 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
           const SizedBox(height: 20),
 
           // 4. Action Buttons
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, AppRoutes.aiChat),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryBrown,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+          if (activeOrder.isCancelled) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  OrderService.instance.clearActiveOrder();
+                  OrderService.instance.loadHistoryFromBackend();
+                  setState(() {
+                    _selectedTab = 1;
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFC62828),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
                 ),
-                elevation: 0,
-              ),
-              icon: const Icon(
-                Icons.auto_awesome,
-                color: Colors.white,
-                size: 18,
-              ),
-              label: const Text(
-                'Tanya Barista AI tentang Pesanan',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                icon: const Icon(
+                  Icons.history_rounded,
                   color: Colors.white,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Tutup & Simpan ke Riwayat',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
+          ] else ...[
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, AppRoutes.aiChat),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBrown,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(
+                  Icons.auto_awesome,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Tanya Barista AI tentang Pesanan',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           SizedBox(
             width: double.infinity,
             height: 44,
@@ -438,117 +526,191 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
 
   Widget _buildHistoryView(List<OrderModel> history) {
     if (history.isEmpty) {
-      return const Center(
-        child: Text(
-          'Belum ada riwayat transaksi.',
-          style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+      return RefreshIndicator(
+        onRefresh: () => OrderService.instance.loadHistoryFromBackend(),
+        color: AppColors.primaryBrown,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 180),
+            Center(
+              child: Text(
+                'Belum ada riwayat transaksi.',
+                style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      itemCount: history.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final order = history[index];
-        final formattedDate =
-            '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}';
+    return RefreshIndicator(
+      onRefresh: () => OrderService.instance.loadHistoryFromBackend(),
+      color: AppColors.primaryBrown,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        itemCount: history.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final order = history[index];
+          final localDt = order.createdAt.toLocal();
+          final hh = localDt.hour.toString().padLeft(2, '0');
+          final mm = localDt.minute.toString().padLeft(2, '0');
+          final formattedDate =
+              '${localDt.day}/${localDt.month}/${localDt.year} • $hh:$mm WIB';
 
-        return InkWell(
-          onTap: () => _showOrderDetailsDialog(order),
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.inputBorderColor),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBgColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.receipt_rounded,
-                      color: AppColors.primaryBrown,
-                      size: 20,
+          final isCancelled = order.status == OrderStatus.dibatalkan;
+          final isDone = order.status == OrderStatus.selesai;
+          final badgeBg = isCancelled
+              ? const Color(0xFFFFEBEE)
+              : (isDone ? const Color(0xFFE8F5E9) : const Color(0xFFFFF8E1));
+          final badgeTextColor = isCancelled
+              ? const Color(0xFFC62828)
+              : (isDone ? const Color(0xFF2E7D32) : const Color(0xFFE65100));
+
+          return InkWell(
+            onTap: () => _showOrderDetailsDialog(order),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isCancelled
+                      ? const Color(0xFFFFCDD2)
+                      : AppColors.inputBorderColor,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isCancelled
+                          ? const Color(0xFFFFEBEE)
+                          : AppColors.cardBgColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        isCancelled
+                            ? Icons.cancel_rounded
+                            : Icons.receipt_rounded,
+                        color: isCancelled
+                            ? const Color(0xFFC62828)
+                            : AppColors.primaryBrown,
+                        size: 20,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            order.id,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.darkText,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'Selesai',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2E7D32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                order.id,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.darkText,
+                                ),
                               ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: badgeBg,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                order.status.badgeText,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: badgeTextColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$formattedDate • ${order.totalItemCount} Item • ${order.paymentMethod}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.secondaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              AppFormatters.formatRupiah(order.totalPrice),
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: isCancelled
+                                    ? const Color(0xFFC62828)
+                                    : AppColors.primaryBrown,
+                                decoration: isCancelled
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                            ),
+                            Text(
+                              order.orderType == 'TAKEAWAY' ? 'Takeaway' : 'Dine-in',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                color: AppColors.secondaryText,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isCancelled &&
+                            order.cancelReason != null &&
+                            order.cancelReason!.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            'Alasan: ${order.cancelReason}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              color: Color(0xFFC62828),
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$formattedDate • ${order.totalItemCount} Item • ${order.paymentMethod}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.secondaryText,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        AppFormatters.formatRupiah(order.totalPrice),
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryBrown,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.secondaryText,
-                  size: 20,
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.secondaryText,
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

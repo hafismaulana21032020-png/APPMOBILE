@@ -2,7 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_validators.dart';
+import '../../../../core/widgets/password_similarity_warning_dialog.dart';
+import '../../domain/services/user_service.dart';
 import '../../../cart/domain/services/cart_service.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import '../../../home/presentation/widgets/home_nav_helper.dart';
@@ -20,6 +24,12 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _orderStatusNotif = true;
   bool _promoNotif = false;
   bool _biometricLogin = true;
+
+  @override
+  void initState() {
+    super.initState();
+    UserService.instance.syncWithBackend();
+  }
 
   void _showMessage(String msg) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -188,12 +198,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ══════════════════════ 3. UBAH KATA SANDI MODAL SHEET ══════════════════════
   void _showChangePasswordSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => const _ChangePasswordSheetContent(),
-    );
+    showVerifiedChangePasswordSheet(context);
   }
 
   // ══════════════════════ 4. KEBIJAKAN PRIVASI MODAL SHEET ══════════════════════
@@ -990,8 +995,31 @@ class _PolicySection extends StatelessWidget {
   }
 }
 
+Future<void> showVerifiedChangePasswordSheet(
+  BuildContext context, {
+  @visibleForTesting bool skipVerificationForTest = false,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetCtx) => _ChangePasswordSheetContent(
+      skipVerificationForTest: skipVerificationForTest,
+    ),
+  );
+}
+
+enum _ChangePasswordStep {
+  verifyCurrent,
+  createNew,
+}
+
 class _ChangePasswordSheetContent extends StatefulWidget {
-  const _ChangePasswordSheetContent();
+  final bool skipVerificationForTest;
+
+  const _ChangePasswordSheetContent({
+    this.skipVerificationForTest = false,
+  });
 
   @override
   State<_ChangePasswordSheetContent> createState() =>
@@ -1004,32 +1032,114 @@ class _ChangePasswordSheetContentState
   final _newController = TextEditingController();
   final _confirmController = TextEditingController();
 
+  late _ChangePasswordStep _step;
   bool _obscureOld = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
+  bool _isSubmitting = false;
   String? _errorMessage;
+  String? _similarityWarning;
+
+  @override
+  void initState() {
+    super.initState();
+    _step = widget.skipVerificationForTest
+        ? _ChangePasswordStep.createNew
+        : _ChangePasswordStep.verifyCurrent;
+    _newController.addListener(_evaluateLiveSimilarity);
+  }
+
+  void _evaluateLiveSimilarity() {
+    if (!UserService.instance.hasPassword) return;
+    final oldPass = _oldController.text.trim();
+    final newPass = _newController.text.trim();
+    if (oldPass.isEmpty || newPass.isEmpty) {
+      if (_similarityWarning != null && mounted) {
+        setState(() => _similarityWarning = null);
+      }
+      return;
+    }
+
+    final similarity =
+        AppValidators.evaluatePasswordSimilarity(oldPass, newPass);
+    String? nextWarning;
+    if (similarity == PasswordSimilarity.identical) {
+      nextWarning =
+          'Kata sandi baru sama persis dengan kata sandi sebelumnya. Silakan gunakan kata sandi lain.';
+    } else if (similarity == PasswordSimilarity.similar) {
+      nextWarning =
+          'Peringatan: Kata sandi baru hampir sama dengan kata sandi sebelumnya. Disarankan gunakan kombinasi yang lebih berbeda.';
+    }
+
+    if (nextWarning != _similarityWarning && mounted) {
+      setState(() => _similarityWarning = nextWarning);
+    }
+  }
 
   @override
   void dispose() {
+    _newController.removeListener(_evaluateLiveSimilarity);
     _oldController.dispose();
     _newController.dispose();
     _confirmController.dispose();
     super.dispose();
   }
 
-  void _submit() {
+  void _openForgotPasswordViaGmail() {
+    final email = UserService.instance.email.trim();
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    navigator.pushNamed(
+      AppRoutes.forgotPassword,
+      arguments: email.isNotEmpty ? email : null,
+    );
+  }
+
+  Future<void> _verifyCurrentPassword() async {
+    final oldPass = _oldController.text.trim();
+    setState(() => _errorMessage = null);
+
+    if (oldPass.isEmpty) {
+      setState(() => _errorMessage = 'Kata sandi lama harus diisi.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final res = await ApiService.instance.verifyCurrentPassword(oldPass);
+      if (!mounted) return;
+
+      if (res['success'] == true && res['verified'] == true) {
+        setState(() {
+          _step = _ChangePasswordStep.createNew;
+          _errorMessage = null;
+          _similarityWarning = null;
+        });
+      } else {
+        setState(() {
+          _errorMessage =
+              res['message']?.toString() ?? 'Kata sandi lama tidak sesuai.';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Gagal terhubung ke server: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _submitNewPassword({bool allowSimilar = false}) async {
     final oldPass = _oldController.text.trim();
     final newPass = _newController.text.trim();
     final confirmPass = _confirmController.text.trim();
+    final hasExistingPassword = UserService.instance.hasPassword;
 
-    setState(() {
-      _errorMessage = null;
-    });
+    setState(() => _errorMessage = null);
 
-    if (oldPass.isEmpty) {
-      setState(() => _errorMessage = 'Kata sandi saat ini harus diisi.');
-      return;
-    }
     if (newPass.length < 6) {
       setState(() => _errorMessage = 'Kata sandi baru minimal 6 karakter.');
       return;
@@ -1038,28 +1148,95 @@ class _ChangePasswordSheetContentState
       setState(() => _errorMessage = 'Konfirmasi kata sandi tidak cocok.');
       return;
     }
-    if (newPass == oldPass) {
-      setState(
-        () => _errorMessage =
-            'Kata sandi baru harus berbeda dari kata sandi lama.',
-      );
-      return;
+
+    if (hasExistingPassword) {
+      final localSimilarity =
+          AppValidators.evaluatePasswordSimilarity(oldPass, newPass);
+      if (localSimilarity == PasswordSimilarity.identical) {
+        setState(
+          () => _errorMessage =
+              'Kata sandi baru harus berbeda dari kata sandi lama.',
+        );
+        return;
+      }
+      if (localSimilarity == PasswordSimilarity.similar && !allowSimilar) {
+        final proceed = await showPasswordSimilarityWarningDialog(context);
+        if (!mounted || !proceed) return;
+        allowSimilar = true;
+      }
     }
 
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Kata sandi berhasil diperbarui!'),
-        backgroundColor: AppColors.primaryBrown,
-        duration: Duration(seconds: 2),
-      ),
-    );
+    setState(() => _isSubmitting = true);
+    try {
+      final res = await ApiService.instance.changePassword(
+        currentPassword: hasExistingPassword ? oldPass : null,
+        newPassword: newPass,
+        allowSimilar: allowSimilar,
+      );
+      if (!mounted) return;
+
+      if (res['success'] == true) {
+        await UserService.instance.syncWithBackend();
+        if (!mounted) return;
+        final navigator = Navigator.of(context);
+        final messenger = ScaffoldMessenger.of(context);
+        navigator.pop();
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              res['message']?.toString() ?? 'Kata sandi berhasil diperbarui!',
+            ),
+            backgroundColor: AppColors.primaryBrown,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else if (res['code'] == 'PASSWORD_TOO_SIMILAR' && !allowSimilar) {
+        setState(() => _isSubmitting = false);
+        final proceed = await showPasswordSimilarityWarningDialog(
+          context,
+          customMessage: res['message']?.toString(),
+        );
+        if (proceed && mounted) {
+          await _submitNewPassword(allowSimilar: true);
+        }
+        return;
+      } else {
+        setState(() {
+          _errorMessage =
+              res['message']?.toString() ?? 'Gagal memperbarui kata sandi.';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Gagal terhubung ke server: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final hasExistingPassword = UserService.instance.hasPassword;
+    final userEmail = UserService.instance.email.trim();
+
+    final titleText = _step == _ChangePasswordStep.verifyCurrent
+        ? (hasExistingPassword
+            ? 'Verifikasi Kata Sandi Lama'
+            : 'Verifikasi via OTP Gmail')
+        : 'Ubah Kata Sandi';
+
+    final subtitleText = _step == _ChangePasswordStep.verifyCurrent
+        ? (hasExistingPassword
+            ? 'Masukkan kata sandi lama kamu terlebih dahulu untuk verifikasi sebelum membuat kata sandi baru.'
+            : 'Akun ini masuk dengan Google dan belum memiliki kata sandi. Verifikasi email dengan kode OTP untuk mengatur kata sandi.')
+        : 'Buat kata sandi baru yang kuat dan berbeda dari kata sandi sebelumnya.';
 
     return Container(
       decoration: const BoxDecoration(
@@ -1085,20 +1262,23 @@ class _ChangePasswordSheetContentState
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Ubah Kata Sandi',
-                style: TextStyle(
+              Text(
+                titleText,
+                style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.bold,
                   color: AppColors.darkText,
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Buat kata sandi baru untuk menjaga keamanan akun BreakFree.',
-                style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+              Text(
+                subtitleText,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.secondaryText,
+                ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
 
               if (_errorMessage != null) ...[
                 Container(
@@ -1133,59 +1313,267 @@ class _ChangePasswordSheetContentState
                 const SizedBox(height: 14),
               ],
 
-              // Kata sandi lama
-              _buildPasswordField(
-                label: 'Kata Sandi Saat Ini',
-                controller: _oldController,
-                obscure: _obscureOld,
-                onToggleObscure: () =>
-                    setState(() => _obscureOld = !_obscureOld),
-              ),
-              const SizedBox(height: 12),
-
-              // Kata sandi baru
-              _buildPasswordField(
-                label: 'Kata Sandi Baru (min. 6 karakter)',
-                controller: _newController,
-                obscure: _obscureNew,
-                onToggleObscure: () =>
-                    setState(() => _obscureNew = !_obscureNew),
-              ),
-              const SizedBox(height: 12),
-
-              // Konfirmasi kata sandi baru
-              _buildPasswordField(
-                label: 'Ulangi Kata Sandi Baru',
-                controller: _confirmController,
-                obscure: _obscureConfirm,
-                onToggleObscure: () =>
-                    setState(() => _obscureConfirm = !_obscureConfirm),
-              ),
-              const SizedBox(height: 20),
-
-              // Submit button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBrown,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
+              if (_step == _ChangePasswordStep.verifyCurrent) ...[
+                if (hasExistingPassword) ...[
+                  _buildPasswordField(
+                    label: 'Kata Sandi Lama',
+                    controller: _oldController,
+                    obscure: _obscureOld,
+                    onToggleObscure: () =>
+                        setState(() => _obscureOld = !_obscureOld),
                   ),
-                  child: const Text(
-                    'Simpan Kata Sandi Baru',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: _isSubmitting ? null : _openForgotPasswordViaGmail,
+                      child: const Text(
+                        'Lupa kata sandi? Reset dengan Gmail (OTP)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryBrown,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
                     ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _verifyCurrentPassword,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBrown,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Verifikasi Kata Sandi Lama',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+                ] else ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBgColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.inputBorderColor),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(
+                              color: AppColors.inputBorderColor,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.mail_outline_rounded,
+                            size: 18,
+                            color: AppColors.primaryBrown,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Email tujuan OTP',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.secondaryText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                userEmail.isNotEmpty
+                                    ? userEmail
+                                    : 'Gmail akun terdaftar',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.darkText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed:
+                          _isSubmitting ? null : _openForgotPasswordViaGmail,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBrown,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Kirim & Verifikasi OTP via Gmail',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ] else ...[
+                if (hasExistingPassword) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFA5D6A7)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.verified_rounded,
+                          size: 16,
+                          color: Color(0xFF2E7D32),
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Kata sandi lama terverifikasi',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1B5E20),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                _buildPasswordField(
+                  label: 'Kata Sandi Baru (min. 6 karakter)',
+                  controller: _newController,
+                  obscure: _obscureNew,
+                  onToggleObscure: () =>
+                      setState(() => _obscureNew = !_obscureNew),
+                ),
+                if (_similarityWarning != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8E1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFFCA28)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 18,
+                          color: Color(0xFFEF6C00),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _similarityWarning!,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF8D4E00),
+                              fontWeight: FontWeight.w600,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                _buildPasswordField(
+                  label: 'Ulangi Kata Sandi Baru',
+                  controller: _confirmController,
+                  obscure: _obscureConfirm,
+                  onToggleObscure: () =>
+                      setState(() => _obscureConfirm = !_obscureConfirm),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : () => _submitNewPassword(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBrown,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Simpan Kata Sandi Baru',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

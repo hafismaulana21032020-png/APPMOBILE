@@ -1,16 +1,24 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/services/api_service.dart';
+import '../../../../core/services/google_auth_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/app_validators.dart';
 import '../../../../core/widgets/auth_header_bar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
-import '../../../../core/services/api_service.dart';
+import '../../../account/domain/services/notification_service.dart';
 import '../../../account/domain/services/user_service.dart';
+import '../../../home/domain/services/favorite_service.dart';
+import '../../../home/domain/services/menu_service.dart';
+import '../../../home/domain/services/promo_service.dart';
+import '../../../order/domain/services/order_service.dart';
 import '../widgets/auth_info_card.dart';
+import '../widgets/google_sign_in_button.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -22,88 +30,82 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   bool _isObscurePassword = true;
   bool _isObscureConfirmPassword = true;
   bool _isAgreed = false;
+  bool _isLoading = false;
+  bool _isGoogleLoading = false;
+  StreamSubscription<Map<String, dynamic>>? _webGoogleSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _webGoogleSub = GoogleAuthService.instance.webSignInResults.listen((res) async {
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      if (res['success'] == true) {
+        setState(() => _isGoogleLoading = true);
+        try {
+          await _completeAuth(res);
+        } finally {
+          if (mounted) setState(() => _isGoogleLoading = false);
+        }
+      } else if (res['cancelled'] != true) {
+        _showMessage(
+          res['message']?.toString() ?? 'Gagal daftar dengan Google.',
+          isError: true,
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _webGoogleSub?.cancel();
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _showError(String message) {
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.redAccent,
+        backgroundColor: isError ? const Color(0xFFC93B2B) : AppColors.primaryBrown,
       ),
     );
   }
 
-  void _onRegister() {
-    final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    final confirmPassword = _confirmPasswordController.text;
-
-    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
-      _showError('Silakan lengkapi semua data pendaftaran terlebih dahulu');
-      return;
+  Future<void> _completeAuth(Map<String, dynamic> res) async {
+    if (res['token'] != null) {
+      await ApiService.instance.setAuthToken(res['token'].toString());
+    }
+    if (res['customer'] is Map<String, dynamic>) {
+      UserService.instance.setFromJson(res['customer'] as Map<String, dynamic>);
+    } else {
+      await UserService.instance.syncWithBackend();
     }
 
-    if (!AppValidators.isValidEmail(email)) {
-      _showError('Format email tidak valid');
-      return;
-    }
+    await Future.wait([
+      MenuService.instance.fetchMenu(force: true),
+      FavoriteService.instance.fetchFavorites(),
+      PromoService.instance.fetchActivePromos(force: true),
+      OrderService.instance.syncActiveOrderFromBackend(),
+      OrderService.instance.loadHistoryFromBackend(),
+      NotificationService.instance.fetchNotifications(),
+    ]);
 
-    if (!AppValidators.isStrongPassword(password)) {
-      _showError('Kata sandi minimal 8 karakter dan mengandung huruf serta angka');
-      return;
-    }
-
-    if (password != confirmPassword) {
-      _showError('Konfirmasi kata sandi tidak cocok');
-      return;
-    }
-
-    if (!_isAgreed) {
-      _showError('Silakan setujui Syarat dan Ketentuan terlebih dahulu');
-      return;
-    }
-
-    final currentUser = UserService.instance;
-    currentUser.updateProfile(
-      name: name.toUpperCase(),
-      email: email,
-      phone: currentUser.phone,
-      birthDate: currentUser.birthDate,
+    if (!mounted) return;
+    _showMessage(
+      res['message']?.toString() ?? 'Akun berhasil dibuat! Selamat datang, ${UserService.instance.name}',
     );
-
-    // Kirim pendaftaran akun ke backend terpadu
-    ApiService.instance.register(name: name, email: email, password: password).then((res) {
-      if (res['success'] == true && res['token'] != null) {
-        ApiService.instance.setAuthToken(res['token']);
-      }
-    }).catchError((e) {
-      debugPrint('Register backend error: $e');
-    });
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Akun berhasil dibuat! Selamat datang, $name'),
-        backgroundColor: AppColors.primaryBrown,
-        duration: const Duration(seconds: 1),
-      ),
-    );
-
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.home,
@@ -111,9 +113,88 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  Future<void> _onRegister() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      _showMessage('Silakan lengkapi nama, email, dan kata sandi terlebih dahulu', isError: true);
+      return;
+    }
+
+    if (!AppValidators.isValidEmail(email)) {
+      _showMessage('Format email tidak valid', isError: true);
+      return;
+    }
+
+    if (phone.isNotEmpty && !RegExp(r'^[0-9+\-\s]{8,20}$').hasMatch(phone)) {
+      _showMessage('Format nomor telepon tidak valid (minimal 8 digit angka)', isError: true);
+      return;
+    }
+
+    if (!AppValidators.isStrongPassword(password)) {
+      _showMessage('Kata sandi minimal 8 karakter dan mengandung huruf serta angka', isError: true);
+      return;
+    }
+
+    if (password != confirmPassword) {
+      _showMessage('Konfirmasi kata sandi tidak cocok', isError: true);
+      return;
+    }
+
+    if (!_isAgreed) {
+      _showMessage('Silakan setujui Syarat dan Ketentuan terlebih dahulu', isError: true);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final res = await ApiService.instance.register(
+        name: name,
+        email: email,
+        password: password,
+        phone: phone.isEmpty ? null : phone,
+      );
+
+      if (res['success'] == true) {
+        await _completeAuth(res);
+      } else {
+        _showMessage(
+          res['message']?.toString() ?? 'Gagal mendaftarkan akun.',
+          isError: true,
+        );
+      }
+    } catch (e) {
+      _showMessage('Gagal terhubung ke server: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _onGoogleSignUp() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      final res = await GoogleAuthService.instance.signInWithGoogle();
+      if (res['success'] == true) {
+        await _completeAuth(res);
+      } else if (res['cancelled'] != true) {
+        _showMessage(
+          res['message']?.toString() ?? 'Gagal daftar dengan Google.',
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
@@ -123,13 +204,9 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Custom Header Bar
-              AuthHeaderBar(
-                onBackPressed: () => Navigator.pop(context),
-              ),
+              AuthHeaderBar(onBackPressed: () => Navigator.pop(context)),
               const SizedBox(height: AppDimensions.xxl),
 
-              // Judul Pendaftaran
               const Text(
                 'Yuk, jadi bagian BreakFree!',
                 style: AppTextStyles.headingLarge,
@@ -141,7 +218,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: AppDimensions.xl),
 
-              // Card Promo Kecil
               const AuthInfoCard(
                 icon: Icons.auto_awesome,
                 title: 'Ngopi, kumpulkan poin, nikmati promo.',
@@ -149,7 +225,29 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: AppDimensions.xl),
 
-              // Input Nama Lengkap
+              GoogleSignInButton(
+                text: 'Daftar dengan Google',
+                isLoading: _isGoogleLoading,
+                isSignUp: true,
+                onPressed: _isLoading ? null : _onGoogleSignUp,
+              ),
+              const SizedBox(height: AppDimensions.lg),
+
+              Row(
+                children: const [
+                  Expanded(child: Divider(color: AppColors.inputBorderColor)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'atau daftar manual',
+                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: AppColors.inputBorderColor)),
+                ],
+              ),
+              const SizedBox(height: AppDimensions.lg),
+
               CustomTextField(
                 label: 'Nama lengkap',
                 controller: _nameController,
@@ -158,7 +256,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: AppDimensions.lg),
 
-              // Input Email
               CustomTextField(
                 label: 'Email',
                 controller: _emailController,
@@ -168,7 +265,15 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: AppDimensions.lg),
 
-              // Input Kata Sandi
+              CustomTextField(
+                label: 'Nomor telepon (Opsional)',
+                controller: _phoneController,
+                hintText: 'Contoh: 081234567890 (boleh kosong)',
+                prefixIcon: Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: AppDimensions.lg),
+
               CustomTextField(
                 label: 'Kata sandi',
                 controller: _passwordController,
@@ -197,7 +302,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: AppDimensions.lg),
 
-              // Input Konfirmasi Kata Sandi
               CustomTextField(
                 label: 'Konfirmasi kata sandi',
                 controller: _confirmPasswordController,
@@ -221,7 +325,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: AppDimensions.xl),
 
-              // Checkbox Persetujuan Syarat & Ketentuan
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -277,14 +380,13 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: AppDimensions.xxl),
 
-              // Tombol Daftar
               CustomButton(
                 text: 'Daftar',
-                onPressed: _onRegister,
+                isLoading: _isLoading,
+                onPressed: _isGoogleLoading ? null : _onRegister,
               ),
               const SizedBox(height: AppDimensions.xl),
 
-              // Footer Pindah ke Login
               Center(
                 child: GestureDetector(
                   onTap: () => Navigator.pop(context),
